@@ -1,0 +1,52 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { getAllPosts } from '../lib/content';
+
+const posts = await getAllPosts();
+---
+
+<BaseLayout title="Nishant Thapa">
+  <div class="container hero">
+    <h1>Nishant Thapa</h1>
+    <p class="tagline">Notes, write-ups, and paper reviews.</p>
+  </div>
+
+  <div class="container">
+    {posts.length === 0 ? (
+      <p class="empty">No posts yet — copy <code>templates/example-post/</code> into <code>src/content/</code> to publish your first one.</p>
+    ) : (
+      <div class="grid">
+        {posts.map((post) => <PostCard post={post} />)}
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding: var(--space-6) var(--space-4) var(--space-5);
+  }
+
+  .hero h1 {
+    margin: 0 0 var(--space-2);
+  }
+
+  .tagline {
+    color: var(--color-ink-muted);
+    font-size: var(--fs-lg);
+    margin: 0;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-4);
+    padding-bottom: var(--space-6);
+  }
+
+  .empty {
+    color: var(--color-ink-muted);
+    padding-bottom: var(--space-6);
+  }
+</style>

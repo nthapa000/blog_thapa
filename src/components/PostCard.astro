@@ -1,0 +1,77 @@
+---
+import { sectionOf, humanizeSection } from '../lib/content';
+import type { Post } from '../lib/content';
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const section = sectionOf(post);
+const dateLabel = post.data.date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+---
+
+<a class="card" href={`/${post.id}/`}>
+  <span class="badge">{humanizeSection(section)}</span>
+  <h3>{post.data.title}</h3>
+  <p class="description">{post.data.description}</p>
+  <div class="meta">
+    <time>{dateLabel}</time>
+    {post.data.tags.length > 0 && (
+      <span class="tags">{post.data.tags.join(' · ')}</span>
+    )}
+  </div>
+</a>
+
+<style>
+  .card {
+    display: block;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg-raised);
+    text-decoration: none;
+    color: var(--color-ink);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .card:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    background: var(--color-accent-soft);
+    padding: 0.2em 0.6em;
+    border-radius: 999px;
+    margin-bottom: var(--space-2);
+  }
+
+  h3 {
+    font-size: var(--fs-lg);
+    margin: 0 0 var(--space-2);
+  }
+
+  .description {
+    color: var(--color-ink-muted);
+    font-size: var(--fs-sm);
+    margin: 0 0 var(--space-3);
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--color-ink-muted);
+  }
+</style>

@@ -1,0 +1,71 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{items.length > 0 && (
+  <nav class="toc">
+    <p class="toc-title">On this page</p>
+    <ul>
+      {items.map((h) => (
+        <li class={h.depth === 3 ? 'sub' : ''}>
+          <a href={`#${h.slug}`}>{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .toc {
+    font-size: var(--fs-sm);
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .toc-title {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+    margin: 0 0 var(--space-2);
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 2px solid var(--color-border);
+  }
+
+  li {
+    margin: 0;
+  }
+
+  li.sub a {
+    padding-left: var(--space-4);
+  }
+
+  a {
+    display: block;
+    color: var(--color-ink-muted);
+    text-decoration: none;
+    padding: var(--space-1) var(--space-3);
+    line-height: var(--lh-tight);
+  }
+
+  a:hover {
+    color: var(--color-accent);
+  }
+</style>

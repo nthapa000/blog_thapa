@@ -1,0 +1,75 @@
+---
+import { getNavTree, humanizeSection } from '../lib/content';
+
+interface Props {
+  activeId?: string;
+}
+
+const { activeId } = Astro.props;
+const nav = await getNavTree();
+---
+
+<aside class="sidebar">
+  {[...nav.entries()].map(([section, posts]) => (
+    <div class="group">
+      <p class="group-title">{humanizeSection(section)}</p>
+      <ul>
+        {posts.map((post) => (
+          <li>
+            <a href={`/${post.id}/`} class={post.id === activeId ? 'active' : ''}>
+              {post.data.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))}
+</aside>
+
+<style>
+  .sidebar {
+    font-size: var(--fs-sm);
+  }
+
+  .group {
+    margin-bottom: var(--space-4);
+  }
+
+  .group-title {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+    margin: 0 0 var(--space-2);
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  a {
+    display: block;
+    color: var(--color-ink-muted);
+    text-decoration: none;
+    padding: var(--space-1) var(--space-2);
+    border-radius: 6px;
+    line-height: var(--lh-tight);
+  }
+
+  a:hover {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  a.active {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,100 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+import { sectionOf, humanizeSection } from '../lib/content';
+import type { Post } from '../lib/content';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  post: Post;
+  headings: Heading[];
+}
+
+const { post, headings } = Astro.props;
+const section = sectionOf(post);
+const dateLabel = post.data.date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<BaseLayout title={post.data.title} description={post.data.description}>
+  <div class="container layout">
+    <div class="sidebar-col">
+      <Sidebar activeId={post.id} />
+    </div>
+
+    <article class="content-col">
+      <p class="eyebrow">{humanizeSection(section)}</p>
+      <h1>{post.data.title}</h1>
+      <div class="post-meta">
+        <time>{dateLabel}</time>
+        {post.data.tags.length > 0 && (
+          <span class="tags">{post.data.tags.join(' · ')}</span>
+        )}
+      </div>
+      <div class="prose">
+        <slot />
+      </div>
+    </article>
+
+    <div class="toc-col">
+      <TableOfContents headings={headings} />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 200px;
+    gap: var(--space-5);
+    padding-top: var(--space-5);
+    align-items: start;
+  }
+
+  .sidebar-col,
+  .toc-col {
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin: 0;
+  }
+
+  h1 {
+    margin-top: var(--space-2);
+  }
+
+  .post-meta {
+    display: flex;
+    gap: var(--space-3);
+    color: var(--color-ink-muted);
+    font-size: var(--fs-sm);
+    margin-bottom: var(--space-5);
+  }
+
+  @media (max-width: 960px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar-col,
+    .toc-col {
+      position: static;
+    }
+  }
+</style>
