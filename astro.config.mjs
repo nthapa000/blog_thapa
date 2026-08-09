@@ -6,7 +6,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://blog-thapa.vercel.app',
+  site: 'https://blog.nishantthapa.dev',
   trailingSlash: 'always',
   integrations: [mdx(), sitemap()]
 });
