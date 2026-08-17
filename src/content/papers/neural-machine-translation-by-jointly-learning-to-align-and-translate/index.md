@@ -18,7 +18,7 @@ description: "How Bahdanau et al. (2014) replaced the fixed-length context vecto
 date: 2026-08-17
 # updated: 2026-08-15                # optional — uncomment if you revise later
 tags: ["paper-review", "orginal attention","Bahdanau Attention"]
-draft: true                          # keep true while writing; drafts are hidden from the production build
+draft: false                          # keep true while writing; drafts are hidden from the production build
 # cover: ./assets/cover.png          # optional social/listing image — only uncomment once the file exists
 # coverAlt: "Description of the cover image"
 ---
