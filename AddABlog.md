@@ -6,11 +6,25 @@
    `src/content/` — e.g. `papers`, `til`, `notes`. If the category doesn't
    exist yet, just create it; there is nothing to register anywhere else.
 
-2. **Copy the template.** Duplicate `templates/example-post/` to:
+   The homepage always shows three fixed sections, in this order: **Papers**,
+   **Machine Learning**, **System Design** (see `HOME_SECTIONS` in
+   `src/lib/content.ts`). Use the matching category folder name —
+   `papers`, `machine-learning`, or `system-design` — to have a post show up
+   under the right one. Any other category name still works and gets its own
+   page/sidebar group; it just won't appear on the homepage.
+
+2. **Copy the template.** Duplicate the matching template folder to:
 
    ```
    src/content/<category>/<your-post-slug>/
    ```
+
+   | Category           | Template                          |
+   | ------------------- | --------------------------------- |
+   | `papers`            | `templates/example-post/`         |
+   | `machine-learning`  | `templates/machine-learning-post/`|
+   | `system-design`     | `templates/system-design-post/`   |
+   | anything else       | `templates/example-post/`         |
 
    The slug becomes the URL segment, so use lowercase-kebab-case, e.g.
    `attention-is-all-you-need` → `/papers/attention-is-all-you-need/`.

@@ -1,35 +1,78 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
-import { getAllPosts } from '../lib/content';
+import { getHomeSections } from '../lib/content';
 
-const posts = await getAllPosts();
+const sections = await getHomeSections();
 ---
 
 <BaseLayout title="Nishant Thapa">
   <div class="container hero">
-    <h1>Nishant Thapa</h1>
     <p class="tagline">Notes, write-ups, and paper reviews.</p>
   </div>
 
   <div class="container">
-    {posts.length === 0 ? (
-      <p class="empty">No posts yet — copy <code>templates/example-post/</code> into <code>src/content/</code> to publish your first one.</p>
-    ) : (
-      <div class="grid">
-        {posts.map((post) => <PostCard post={post} />)}
-      </div>
-    )}
+    {sections.map((section) => (
+      <section class="section" id={section.slug} data-section={section.slug} hidden={section.slug !== 'papers'}>
+        <div class="section-head">
+          <h2>{section.label}</h2>
+          <p class="section-desc">{section.description}</p>
+        </div>
+
+        {section.posts.length === 0 ? (
+          <p class="empty">
+            No posts yet — copy <code>templates/{section.templateDir}/</code> into{' '}
+            <code>src/content/{section.slug}/</code> to publish the first one.
+          </p>
+        ) : (
+          <div class="grid">
+            {section.posts.map((post) => <PostCard post={post} />)}
+          </div>
+        )}
+      </section>
+    ))}
   </div>
 </BaseLayout>
 
-<style>
-  .hero {
-    padding: var(--space-6) var(--space-4) var(--space-5);
+<script>
+  const DEFAULT_SECTION = 'papers';
+
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('.section[data-section]'));
+  const navLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-tab]'));
+  const sectionSlugs = new Set(sections.map((s) => s.dataset.section));
+
+  function resolveSlug(): string {
+    const hash = location.hash.replace('#', '');
+    return sectionSlugs.has(hash) ? hash : DEFAULT_SECTION;
   }
 
-  .hero h1 {
-    margin: 0 0 var(--space-2);
+  function activate(slug: string) {
+    for (const section of sections) {
+      section.hidden = section.dataset.section !== slug;
+    }
+    for (const link of navLinks) {
+      link.classList.toggle('active', link.dataset.tab === slug);
+    }
+  }
+
+  activate(resolveSlug());
+
+  for (const link of navLinks) {
+    link.addEventListener('click', (event) => {
+      const slug = link.dataset.tab!;
+      if (!sectionSlugs.has(slug)) return;
+      event.preventDefault();
+      history.pushState(null, '', `/#${slug}`);
+      activate(slug);
+    });
+  }
+
+  window.addEventListener('hashchange', () => activate(resolveSlug()));
+</script>
+
+<style>
+  .hero {
+    padding: var(--space-5) var(--space-4) var(--space-4);
   }
 
   .tagline {
@@ -38,15 +81,27 @@ const posts = await getAllPosts();
     margin: 0;
   }
 
+  .section {
+    padding-bottom: var(--space-6);
+    scroll-margin-top: var(--space-5);
+  }
+
+  .section-head h2 {
+    margin: 0 0 var(--space-1);
+  }
+
+  .section-desc {
+    color: var(--color-ink-muted);
+    margin: 0 0 var(--space-4);
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: var(--space-4);
-    padding-bottom: var(--space-6);
   }
 
   .empty {
     color: var(--color-ink-muted);
-    padding-bottom: var(--space-6);
   }
 </style>

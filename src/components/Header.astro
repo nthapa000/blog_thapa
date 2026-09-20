@@ -10,7 +10,9 @@ const { siteTitle } = Astro.props;
   <div class="container bar">
     <a class="brand" href="/">{siteTitle}</a>
     <nav class="top-nav">
-      <a href="/">Writing</a>
+      <a href="/#papers" data-tab="papers">Papers</a>
+      <a href="/#machine-learning" data-tab="machine-learning">Machine Learning</a>
+      <a href="/#system-design" data-tab="system-design">System Design</a>
     </nav>
   </div>
 </header>
@@ -53,5 +55,10 @@ const { siteTitle } = Astro.props;
 
   .top-nav a:hover {
     color: var(--color-accent);
+  }
+
+  .top-nav a.active {
+    color: var(--color-accent);
+    font-weight: 700;
   }
 </style>

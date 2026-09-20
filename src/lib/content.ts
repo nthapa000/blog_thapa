@@ -31,3 +31,42 @@ export async function getNavTree(): Promise<Map<string, Post[]>> {
   }
   return groups;
 }
+
+export interface HomeSection {
+  slug: string;
+  label: string;
+  description: string;
+  templateDir: string;
+  posts: Post[];
+}
+
+// Fixed display order/copy for the homepage, independent of which
+// category folders currently have posts in them.
+const HOME_SECTIONS: Omit<HomeSection, 'posts'>[] = [
+  {
+    slug: 'papers',
+    label: 'Papers',
+    description: 'Reviews and walkthroughs of research papers.',
+    templateDir: 'example-post',
+  },
+  {
+    slug: 'machine-learning',
+    label: 'Machine Learning',
+    description: 'Notes on ML concepts, models, and techniques.',
+    templateDir: 'machine-learning-post',
+  },
+  {
+    slug: 'system-design',
+    label: 'System Design',
+    description: 'Breakdowns of how real systems are designed and scaled.',
+    templateDir: 'system-design-post',
+  },
+];
+
+export async function getHomeSections(): Promise<HomeSection[]> {
+  const posts = await getAllPosts();
+  return HOME_SECTIONS.map((section) => ({
+    ...section,
+    posts: posts.filter((post) => sectionOf(post) === section.slug),
+  }));
+}
