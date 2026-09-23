@@ -1,0 +1,1490 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+const TOPIC_ORDER = [
+  "foundations", "paradigms", "inductive", "features",
+  "biasvariance", "vc", "prep", "linreg", "gd", "prob"
+];
+const TOPIC_META = {
+  foundations: { title: "What Is Machine Learning?", blurb: "Definitions, why rule-based systems break down, and where ML actually earns its keep." },
+  paradigms:   { title: "Supervised, Unsupervised & Reinforcement Learning", blurb: "Telling the paradigms apart by what experience the learner gets, not by the algorithm." },
+  inductive:   { title: "Inductive Learning, Hypothesis Spaces & Bias", blurb: "Why learning at all requires an assumption, and what kind of assumption an algorithm is making." },
+  features:    { title: "Features & Feature Space", blurb: "Turning raw data into the coordinates an algorithm can actually draw a boundary in." },
+  biasvariance:{ title: "Bias, Variance & Generalization", blurb: "Underfitting vs. overfitting, Ockham's razor, and why you can't drive both errors to zero at once." },
+  vc:          { title: "Shattering & VC-Dimension", blurb: "A formal way to talk about how expressive a hypothesis class is." },
+  prep:        { title: "Preparing Data for ML", blurb: "Cleaning, missing values, and why feature scale quietly breaks distance-based and gradient-based methods." },
+  linreg:      { title: "Linear Regression", blurb: "Simple and multiple regression, the least-squares objective, and reading the error surface." },
+  gd:          { title: "Gradient Descent Variants", blurb: "Batch, stochastic and mini-batch descent — the tradeoffs that actually show up in training logs." },
+  prob:        { title: "Probability Foundations", blurb: "Sample spaces, events, axioms, and the machinery every probabilistic ML model sits on top of." }
+};
+
+const QUESTIONS = [
+{ topic:"foundations", q:"Tom Mitchell's 1998 definition says a program learns from experience E with respect to task T and performance measure P if its performance at T, measured by P, improves with E. For a spam filter, which of the following are correctly matched to E, T, or P?",
+  options:[
+    {t:"E = the collection of emails the user has already labeled spam/not-spam", c:true},
+    {t:"T = classifying a new incoming email as spam or not spam", c:true},
+    {t:"P = the fraction of new emails correctly classified", c:true},
+    {t:"P = the total number of emails ever sent by anyone", c:false},
+    {t:"T = the algorithm used to store emails on disk", c:false}
+  ],
+  exp:"<p>The &lt;P,T,E&gt; triple is the standard way interviewers check you actually understand what 'learning' means operationally, not just as a buzzword. <b>E</b> is the data/interaction the system is exposed to (labeled emails). <b>T</b> is the task being performed at deployment time (classify a new email). <b>P</b> is a measurable score of how well T is being done (accuracy, F1, etc.) — it must be something you can compute, so 'total emails ever sent' isn't a performance measure of this system at all, and 'algorithm used to store emails' is an implementation detail, not the task.</p><p><b>Interview angle:</b> when asked to design an ML system, stating the &lt;P,T,E&gt; triple explicitly (and picking a P that's actually aligned with business goals, e.g. weighted for false-positive cost) is a strong opening move in a system-design round.</p>"
+},
+
+{ topic:"foundations", q:"Which statements correctly distinguish Arthur Samuel's (1959) definition of ML from Tom Mitchell's (1998) definition?",
+  options:[
+    {t:"Samuel's definition is informal and emphasizes 'not being explicitly programmed'", c:true},
+    {t:"Mitchell's definition is formal and operational — it can be checked against a concrete P, T, E", c:true},
+    {t:"Samuel's definition predates the use of neural networks for computer vision", c:true},
+    {t:"Mitchell's definition requires the learner to use gradient descent", c:false},
+    {t:"Samuel's definition was created for deep learning specifically", c:false}
+  ],
+  exp:"<p>Samuel's phrase ('the ability to learn without being explicitly programmed') is a great intuition-builder but isn't falsifiable/testable on its own. Mitchell's &lt;P,T,E&gt; formulation is what lets you write down, for any proposed system, exactly what experiment would show it 'learned.' Neither definition ties ML to a specific algorithm family (gradient descent, neural nets, decision trees, etc.) — that's a category error interviewers listen for.</p>"
+},
+
+{ topic:"foundations", q:"A rule-based (hand-coded) system tries to recognize handwritten digits by measuring shape features like the number of closed loops. Based on the slide's OCR/digit examples, which statements are true?",
+  options:[
+    {t:"Handwriting varies enough between people that a single hand-crafted rule set will systematically misclassify some valid digits", c:true},
+    {t:"Shape alone is not always sufficient — e.g. distinguishing a tiger from a zebra by silhouette alone fails for a white tiger", c:true},
+    {t:"A purely local, character-by-character rule-based OCR system can misread 'football' as 'fooEball' because it ignores surrounding context", c:true},
+    {t:"Rule-based systems always outperform learned systems once enough rules are added", c:false},
+    {t:"The reason to prefer ML here is that we can't practically enumerate every visual variation by hand, so we let the system infer the pattern from labeled examples", c:true}
+  ],
+  exp:"<p>This is the core 'why ML' argument from the deck: for problems with huge natural variability (handwriting, animal appearance, language), enumerating explicit rules doesn't scale — you'd need an unbounded rule set to cover every case, and rules interact badly. The OCR example specifically shows that <i>local shape matching without context</i> produces plausible-looking but wrong output ('fooEball'), which is exactly why context-aware, learned models (even simple n-gram language models) outperform naive character-shape classifiers. No amount of manually added rules asymptotically beats a system that can generalize from data, because the rule-writer runs out of foresight before the data runs out of edge cases.</p>"
+},
+
+{ topic:"foundations", q:"According to the 'When is ML useful?' criteria discussed, which conditions should hold before reaching for a learned model instead of hand-written logic?",
+  options:[
+    {t:"A pattern genuinely exists in the data", c:true},
+    {t:"The pattern can't be cheaply written down as an explicit closed-form rule or equation", c:true},
+    {t:"You have (or can get) a sufficient amount of representative data — usually called out as the single most important condition", c:true},
+    {t:"The label distribution must be perfectly balanced across all classes", c:false},
+    {t:"The relationship must be linear", c:false}
+  ],
+  exp:"<p>This is a practical gate every ML engineer should run before proposing a model: if there's no real pattern, you'll just fit noise; if the pattern is trivially expressible as a formula (e.g. converting Celsius to Fahrenheit), a model is overkill and adds needless risk/latency/maintenance; and without enough representative data, even the right model architecture will fail to generalize. Class balance and linearity are neither necessary conditions — plenty of successful ML systems handle imbalance (with reweighting/resampling) and nonlinearity (via nonlinear models), so they don't gate the initial 'should we even use ML' decision.</p><p><b>Interview angle:</b> this is the mental checklist behind 'when would you NOT use a neural network' — a classic system-design probe.</p>"
+},
+
+{ topic:"foundations", q:"Which of the following correctly describe the relationship between AI, ML, and Deep Learning as nested fields?",
+  options:[
+    {t:"Machine Learning is a subset of Artificial Intelligence", c:true},
+    {t:"Deep Learning is a subset of Machine Learning", c:true},
+    {t:"Every AI system is necessarily a Machine Learning system", c:false},
+    {t:"A rule-based expert system with no learned parameters can still count as AI", c:true},
+    {t:"Deep Learning refers specifically to models built from multiple layers of learned representations (e.g. neural networks)", c:true}
+  ],
+  exp:"<p>The classic nested-circles picture (AI ⊃ ML ⊃ DL) is a favorite whiteboard question. AI is the broadest field: any system that exhibits behavior we'd call 'intelligent,' including purely symbolic/rule-based planners and search algorithms with zero learning (e.g. A* pathfinding, minimax game trees) — so 'every AI system is ML' is false. ML narrows this to systems that improve via data/experience. DL further narrows ML to models composed of many layers of learned, hierarchical representations (CNNs, transformers, etc.).</p>"
+},
+
+{ topic:"foundations", q:"Which of these are cited as reasons for ML's recent surge in popularity, distinct from the core mathematical ideas (which are decades old)?",
+  options:[
+    {t:"Availability of GPUs and other specialized hardware", c:true},
+    {t:"Cloud compute making large-scale training accessible without owning hardware", c:true},
+    {t:"Availability of large labeled/unlabeled datasets", c:true},
+    {t:"Mature implementation platforms/frameworks such as PyTorch and TensorFlow", c:true},
+    {t:"The invention of the perceptron in 1957, which happened at the same time", c:false}
+  ],
+  exp:"<p>A key interview distinction: the underlying theory (perceptrons 1957/58, backprop formalized in the 1980s, SVMs in the 1990s) is old. What changed circa 2010s was the surrounding ecosystem — GPU throughput for matrix math, elastic cloud compute, internet-scale datasets, and frameworks (PyTorch/TensorFlow) that made iterating on architectures fast for non-systems-experts. Knowing this story shows you understand ML's history isn't 'suddenly discovered math,' it's 'old math finally had the substrate to run at scale.'</p>"
+},
+
+{ topic:"foundations", q:"Traditional programming and machine learning are often contrasted as two different 'functions' a computer computes. Which statements correctly describe this contrast?",
+  options:[
+    {t:"Traditional programming: Data + Program → Output", c:true},
+    {t:"Machine learning (training time): Data + Expected Output (labels) → Program (the learned model)", c:true},
+    {t:"In ML, the 'program' produced by training is often itself just a set of numeric parameters plus a fixed computation graph", c:true},
+    {t:"Traditional programming can never use conditional logic", c:false},
+    {t:"ML removes the need for any data at inference/prediction time", c:false}
+  ],
+  exp:"<p>This flip is the single clearest way to explain ML to a non-technical stakeholder: instead of a human writing the transformation rules (the program) by hand, the computer infers the transformation from examples of correct input→output pairs, and the output of that training process (weights, split thresholds, coefficients, etc.) becomes the new 'program' used at inference time. At inference/serving time, you absolutely still need input data — 'no data needed' is wrong; only training-time labels become unnecessary at inference.</p>"
+},
+
+{ topic:"foundations", q:"Which of the following are legitimate reasons an organization chooses ML-based automation over a human-in-the-loop decision process, per the 'Why ML?' motivations discussed (automation, speed, observer independence)?",
+  options:[
+    {t:"A trained model can apply the same criteria consistently, removing rater-to-rater (observer) variability", c:true},
+    {t:"A model can score thousands of items per second, which no team of human reviewers can match", c:true},
+    {t:"Automating a decision removes the need for any accuracy evaluation going forward", c:false},
+    {t:"A model deployed as a decision-support system can flag cases for human review rather than fully replacing humans", c:true}
+  ],
+  exp:"<p>'Observer independence' means two different human raters (or the same rater on different days) often disagree — a calibrated model applies the exact same function every time, which is valuable in domains like radiology triage or content moderation where consistency itself has value. Speed/scale is the throughput argument. Critically, automating a decision does <i>not</i> remove the need for ongoing evaluation — in fact it raises the stakes, since silent model drift can now affect every decision at scale, so monitoring becomes more important, not less.</p>"
+},
+
+{ topic:"paradigms", q:"Which of the following are the three paradigms of machine learning explicitly covered in the slides?",
+  options:[
+    {t:"Supervised learning", c:true},
+    {t:"Unsupervised learning", c:true},
+    {t:"Reinforcement learning", c:true},
+    {t:"Transfer learning", c:false},
+    {t:"Federated learning", c:false}
+  ],
+  exp:"<p>Supervised, unsupervised and reinforcement learning are the three foundational paradigms defined by <i>what kind of experience/feedback</i> the learner receives: labeled (data, label) pairs, unlabeled data only, or a sequence of actions with delayed rewards/penalties from an environment. Transfer learning and federated learning are real, important techniques, but they're orthogonal concerns (how you reuse a model, or how you train across decentralized data) that can apply <i>within</i> any of the three paradigms — they aren't a fourth co-equal paradigm in this taxonomy.</p>"
+},
+
+{ topic:"paradigms", q:"In supervised learning, which statements about the 'learner' vs. the 'reasoner' are correct?",
+  options:[
+    {t:"During training, the learner receives both data (X) and labels (Y) — this is the 'experience'", c:true},
+    {t:"The output of training is a model, and the process is called training", c:true},
+    {t:"At deployment, the reasoner receives only the data (X) and must predict the label", c:true},
+    {t:"The reasoner is given the correct label as an input so it can double-check its own prediction", c:false},
+    {t:"Background knowledge is always strictly required for supervised learning to work at all", c:false}
+  ],
+  exp:"<p>This learner→model→reasoner pipeline is worth internalizing precisely because it maps directly onto MLOps terminology: 'learner' = training job, 'model' = serialized artifact/checkpoint, 'reasoner' = inference/serving. At inference time the true label is exactly what's unknown — if you had it, there'd be nothing to predict; that's the whole point of a held-out test set: labels exist for evaluation, but the model never sees them as input. Background/prior knowledge is optional — many supervised learners (e.g. plain linear regression from a CSV) work with zero domain knowledge injected.</p>"
+},
+
+{ topic:"paradigms", q:"Which of these are correctly classified as classification tasks vs. regression tasks in supervised learning?",
+  options:[
+    {t:"Predicting whether a tumor is 'benign' or 'malignant' → classification", c:true},
+    {t:"Predicting a patient's hemoglobin level in g% → regression", c:true},
+    {t:"Predicting a house's sale price in rupees → regression", c:true},
+    {t:"Predicting whether an image shows a foreground or background pixel → classification", c:true},
+    {t:"Predicting a robot arm's continuous (x, y) joint coordinate → classification", c:false}
+  ],
+  exp:"<p>The discriminator is the type of the target/label: <b>categorical</b> (a finite set of classes, possibly just 2 as in binary classification) → classification; <b>real-valued/continuous</b> → regression. A continuous 2D coordinate is regression (in fact multi-output regression), not classification, even though it 'looks' like it could be bucketed — unless you deliberately discretize the coordinate space into bins, at which point it becomes a classification problem by construction.</p>"
+},
+
+{ topic:"paradigms", q:"An unsupervised clustering algorithm is given thousands of unlabeled customer-purchase vectors and must group similar customers. Which statements are true about this setting?",
+  options:[
+    {t:"The learner receives only data, with no label attached to any example", c:true},
+    {t:"There is no 'ground truth' class name the model is trying to match during training", c:true},
+    {t:"A typical downstream use is building a recommendation system based on what similar customers previously bought", c:true},
+    {t:"This is identical to supervised classification because both produce a category for each customer", c:false},
+    {t:"Evaluating cluster quality can never be done without human-labeled ground truth", c:false}
+  ],
+  exp:"<p>Clustering is unsupervised because no example carries a 'correct group id' during training — the algorithm discovers structure (cohesive groups of nearby points) rather than matching pre-assigned labels; that's fundamentally different from classification, where a known label set drives training. Cluster quality absolutely can be evaluated without ground truth using internal metrics like silhouette score or within-cluster sum of squares, even though external metrics (e.g. adjusted Rand index against known labels) are also an option when labels happen to exist for validation purposes only.</p>"
+},
+
+{ topic:"paradigms", q:"Which of the following are legitimate example applications of unsupervised learning mentioned in the deck (clustering, dimensionality reduction, association rule mining, generative models)?",
+  options:[
+    {t:"Recommendation systems based on grouping customers by past purchase behavior", c:true},
+    {t:"Finding genetically similar viruses by clustering their genomic patterns", c:true},
+    {t:"Compressing high-dimensional data by finding salient/most-informative features (dimensionality reduction)", c:true},
+    {t:"Finding items that frequently co-occur in shopping baskets (association rule mining)", c:true},
+    {t:"Predicting next month's exact revenue figure from last year's monthly revenue history", c:false}
+  ],
+  exp:"<p>All four listed use-cases genuinely require no labels: clustering groups similar things, dimensionality reduction (e.g. PCA) finds a compact representation preserving structure, and association rule mining (e.g. market-basket analysis, 'customers who bought X also bought Y') finds co-occurrence patterns. Predicting a specific future numeric value from historical numeric values is textbook supervised regression — every historical (month, revenue) pair is itself a labeled training example, since 'last month's revenue' plays the role of a known target during training.</p>"
+},
+
+{ topic:"paradigms", q:"You are teaching a child to ride a bicycle. According to the reinforcement-learning framing used in the slides, which statements are correct?",
+  options:[
+    {t:"This is neither purely supervised nor purely unsupervised — it's driven by trial-and-error feedback", c:true},
+    {t:"Falling down / losing balance acts as a penalty signal", c:true},
+    {t:"Reaching the destination or receiving praise acts as a reward signal", c:true},
+    {t:"What's being learned is a single, one-shot correct output — like a classification label", c:false},
+    {t:"What's being learned is a sequence of good decisions (actions) that control an agent over time", c:true}
+  ],
+  exp:"<p>Bike-riding is the deck's canonical intuition-builder for RL: there's no dataset of (situation, correct-handlebar-angle) pairs handed to the child up front (ruling out pure supervised learning), and it's not just 'find structure in static data' either (ruling out pure unsupervised learning) — instead, the learner tries actions, observes consequences (reward/penalty) from an environment, and adjusts a <i>policy</i> over a <i>sequence</i> of decisions, not a single-shot prediction. That sequential, feedback-driven, action-selection framing is exactly the Agent–Environment–State–Action–Reward loop formalized as a Markov Decision Process.</p>"
+},
+
+{ topic:"paradigms", q:"In the standard reinforcement-learning model (Agent, Environment, State S_t, Action A_t, Reward R_t), which statements are correct?",
+  options:[
+    {t:"The agent chooses an action based on the current state", c:true},
+    {t:"The environment returns a reward and the next state after the agent's action", c:true},
+    {t:"The agent's goal is typically to maximize cumulative reward over time, not just the immediate reward", c:true},
+    {t:"The environment is optional and can be omitted for RL to work", c:false},
+    {t:"The reward at time t+1, R_(t+1), can depend on the action taken at time t", c:true}
+  ],
+  exp:"<p>This is the standard RL loop: agent observes S_t, picks A_t, environment transitions and emits R_(t+1) and S_(t+1), and the loop repeats. The environment is not optional — it's the thing that actually defines the dynamics and reward function the agent is trying to learn about; without it there's nothing to interact with. And RL agents are explicitly optimizing for <i>long-run</i> reward (often formalized via a discounted sum), which is why a good RL policy sometimes accepts a worse immediate reward for a much better future payoff (e.g. sacrificing a chess piece for positional advantage).</p>"
+},
+
+{ topic:"paradigms", q:"Which of these are examples of 'other' learning paradigms mentioned (weakly-supervised, semi-supervised, self-supervised) beyond the three main ones?",
+  options:[
+    {t:"Semi-supervised learning: training with a small labeled set plus a much larger unlabeled set", c:true},
+    {t:"Self-supervised learning: generating supervisory labels automatically from the data itself (e.g. predicting a masked word from its context)", c:true},
+    {t:"Weakly-supervised learning: training with noisy, imprecise, or indirect labels rather than exact ground truth", c:true},
+    {t:"Semi-supervised learning requires that no labels exist at all", c:false},
+    {t:"Self-supervised learning is only usable for image data, never for text", c:false}
+  ],
+  exp:"<p>These sit on the spectrum between fully supervised and fully unsupervised. Semi-supervised uses a small labeled + large unlabeled pool (common when labeling is expensive, e.g. medical imaging). Self-supervised constructs 'free' labels from the raw data's own structure — masked-language-model pretraining (BERT), next-token prediction (GPT), and image rotation/colorization pretext tasks are all self-supervised and span both text and vision (and audio, video, etc.). Weakly-supervised uses labels that are cheap but imperfect — e.g. labeling every pixel in an image with the image-level tag rather than doing precise pixel-level annotation.</p>"
+},
+
+{ topic:"paradigms", q:"Which of the following correctly distinguishes a classification model's target from a regression model's target, using the price-of-house and cat-vs-dog examples from the slides?",
+  options:[
+    {t:"'Cat' or 'Dog' is a categorical label → classification target", c:true},
+    {t:"'1.7 Cr' (a price) is a real number → regression target", c:true},
+    {t:"Both classification and regression can use the exact same input feature vector (e.g. height, weight) — only the target type differs", c:true},
+    {t:"Classification always requires exactly two classes", c:false},
+    {t:"Regression targets must always be positive numbers", c:false}
+  ],
+  exp:"<p>The algorithm family (classification vs regression) is a property of the <i>target/label</i>, not the input features — the same feature vector (say, square footage + location + age of a house) could feed a regression model predicting price or a classification model predicting 'sells in under 30 days: yes/no.' Classification supports any number of classes ≥ 2 (multiclass, e.g. digit recognition 0–9), and regression targets can be negative (e.g. predicting temperature change, profit/loss) — 'always positive' is a dataset property, not a definitional requirement.</p>"
+},
+
+{ topic:"inductive", q:"In inductive learning for the supervised setting, we assume there exists a true target function f(X) and we try to learn a hypothesis h that approximates it. Which statements are correct?",
+  options:[
+    {t:"We never actually observe f directly — we only observe (X, Y) pairs sampled according to it", c:true},
+    {t:"h is called a hypothesis", c:true},
+    {t:"For classification, f(X) is categorical; for regression, f(X) is a real number; for density/probability estimation, f(X) is a probability", c:true},
+    {t:"Inductive learning guarantees h = f exactly once enough data is seen", c:false},
+    {t:"The set of all hypotheses a learning algorithm is willing to consider is called the hypothesis space", c:true}
+  ],
+  exp:"<p>This is the precise vocabulary interviewers expect: f is the unknown, unobservable ground-truth mapping; h is our approximation, drawn from a hypothesis space H (e.g. 'all straight lines,' 'all depth-3 decision trees'). Crucially, induction never <i>guarantees</i> h = f — inductive learning is fundamentally an ill-posed problem (more below) precisely because a finite training sample is consistent with infinitely many hypotheses, so we can only claim h approximates f well on the distribution the data came from, never that we've recovered f exactly.</p>"
+},
+
+{ topic:"inductive", q:"Why is inductive learning described as an 'ill-posed problem'?",
+  options:[
+    {t:"Because a finite set of training examples is consistent with many different hypotheses, and without seeing all possible examples we can't uniquely pin down one 'correct' hypothesis", c:true},
+    {t:"Because we can never collect any training data at all", c:false},
+    {t:"Because multiple different functions can perfectly fit the same finite training set yet disagree wildly on unseen inputs", c:true},
+    {t:"Because the training loss can never be computed exactly", c:false},
+    {t:"This is exactly why we must make an assumption — an inductive bias — to prefer one hypothesis over the others that also fit the data", c:true}
+  ],
+  exp:"<p>'Ill-posed' here has a specific technical meaning: a well-posed problem has a unique solution determined by the given information; here, the given information (a finite labeled sample) is compatible with infinitely many candidate functions that all agree on the training points but diverge everywhere else. This is the formal justification for why every learning algorithm needs an inductive bias — some built-in preference (e.g. 'prefer simpler/smoother functions') that breaks the tie among all the hypotheses that fit the training data equally well.</p>"
+},
+
+{ topic:"inductive", q:"Consider a binary classification problem with N training points in a 2D feature space. Without any restriction on the hypothesis, how many distinct labelings (functions from points to {positive, negative}) are theoretically possible, and what does this imply?",
+  options:[
+    {t:"2^N distinct labelings are possible in the worst case", c:true},
+    {t:"This number grows exponentially in N, so searching all of them becomes computationally infeasible for realistic N", c:true},
+    {t:"This is exactly why we restrict ourselves to a smaller hypothesis space (e.g. only straight-line decision boundaries) rather than considering every conceivable labeling", c:true},
+    {t:"This number is always exactly N regardless of how many points there are", c:false},
+    {t:"Restricting the hypothesis space this way is called introducing an inductive bias", c:true}
+  ],
+  exp:"<p>Each of the N points can independently be labeled one of 2 ways, giving 2^N possible label assignments — with even 30 points that's over a billion, so brute-force search over 'all conceivable functions' is a non-starter. This is precisely the practical motivation for restricting the hypothesis space to something tractable (straight lines, decision trees of bounded depth, neural nets of fixed architecture) — that restriction, plus any preference among the remaining hypotheses, together constitute the model's inductive bias.</p>"
+},
+
+{ topic:"inductive", q:"Which of the following correctly describe 'restriction bias' (a.k.a. absolute bias) as distinguished from 'preference bias' (a.k.a. relative bias)?",
+  options:[
+    {t:"Restriction bias defines the representational power of the algorithm — the entire set of hypotheses it is even capable of expressing", c:true},
+    {t:"An algorithm restricted to straight-line decision boundaries has a restriction bias that excludes, say, circular decision boundaries entirely", c:true},
+    {t:"Preference bias describes which hypotheses within an already-expressible hypothesis space the algorithm favors, e.g. preferring lines parallel to the x-axis", c:true},
+    {t:"Restriction bias and preference bias are two names for exactly the same concept", c:false},
+    {t:"L2 regularization (weight decay), which shrinks a neural network's weights toward zero without removing any architecture's expressiveness, is best understood as a form of preference bias", c:true}
+  ],
+  exp:"<p>This distinction shows up constantly in real system design: choosing a model <i>class</i> (linear model vs. gradient-boosted trees vs. deep net) sets your restriction bias — it hard-limits what functions are even reachable. Regularization, priors, or early stopping don't remove any hypothesis from being reachable in principle, they just make the optimizer prefer 'simpler' members of that same space — that's preference bias. Knowing which lever you're pulling (restriction vs. preference) is exactly how you'd explain, in an interview, why increasing model capacity vs. increasing regularization strength have different effects on the bias-variance tradeoff.</p>"
+},
+
+{ topic:"inductive", q:"Ockham's razor is invoked as a heuristic in model selection. Which statements about it are correct?",
+  options:[
+    {t:"It states we should prefer the simplest hypothesis that is still consistent with the training data", c:true},
+    {t:"It is a genuine mathematical guarantee that the simplest model always generalizes best", c:false},
+    {t:"The rationale is that nature often follows relatively simple underlying laws, so a simpler hypothesis has a better chance of matching the true process rather than just memorizing noise", c:true},
+    {t:"It's connected to the 'No Free Lunch' idea that some inductive bias is unavoidable — Ockham's razor is simply one popular choice of bias", c:true},
+    {t:"Preferring simpler hypotheses always means preferring a smaller number of trainable parameters, with no exceptions", c:false}
+  ],
+  exp:"<p>Ockham's razor is a heuristic/assumption, not a theorem — the deck is explicit that 'this is just an assumption and does not always work.' It's useful precisely because it's one reasonable inductive bias among many, and the No Free Lunch theorem tells us that no bias is universally best across every possible problem — you're always betting that your assumption matches the world you're actually operating in. 'Simpler' is also not strictly synonymous with 'fewer parameters' — e.g. a smooth, low-curvature function can be 'simpler' in a meaningful sense even with many parameters, if those parameters are constrained (regularized) to behave smoothly.</p>"
+},
+
+{ topic:"inductive", q:"You fit a regression curve to 5 training points twice: once assuming the underlying relationship is 'current vs. voltage' (physically near-linear, Ohm's law) and once assuming it's 'day vs. stock price' (noisy and volatile). Which statements correctly reflect the lesson from this example?",
+  options:[
+    {t:"The best-fitting curve depends on our assumptions about the underlying process generating the data, not on the data points alone", c:true},
+    {t:"For the current/voltage case, a simple straight line is a reasonable fit, with off-line points treated as measurement noise/outliers", c:true},
+    {t:"For the volatile stock-price case, a highly wiggly curve that hits every point might be more 'honest' about the process, since real stock prices are noisy and non-smooth", c:true},
+    {t:"There is one universally correct curve shape that fits any 5 data points regardless of what they represent", c:false},
+    {t:"This example illustrates that choosing a hypothesis class is itself a modeling decision, not something the data can decide by itself", c:true}
+  ],
+  exp:"<p>This is the deck's most vivid illustration of inductive bias in action: identical (x, y) coordinate values call for different curve shapes depending on domain knowledge about the data-generating process. Ohm's law is genuinely near-linear physics, so a straight line with the odd measurement-noise outlier is the right story. Daily stock prices are driven by many volatile, hard-to-model factors, so a smooth low-degree curve would actually <i>underfit</i> the real dynamics — a rougher fit may better reflect reality. The lesson: 'best fit' is never data-only, it's data + assumptions about the domain.</p>"
+},
+
+{ topic:"inductive", q:"A car's speed-over-time plot could be drawn as either (a) a perfectly flat horizontal line or (b) a gently wavy curve with small ups and downs. Which statements correctly reflect the reasoning given in the slides?",
+  options:[
+    {t:"The wavy curve (b) is more realistic, since real driving involves traffic, signals, braking, and minor speed variation", c:true},
+    {t:"The flat line (a) would only be accurate under many unrealistic assumptions — perfectly smooth road, zero traffic, no braking, no signals", c:true},
+    {t:"A more realistic (less assumption-laden) model is described as 'more complex,' while a highly assumption-laden model is described as 'simpler'", c:true},
+    {t:"More assumptions always correspond to lower bias in the statistical sense", c:false},
+    {t:"'Simple curves require more assumptions, more bias' is the direct relationship drawn in this example", c:true}
+  ],
+  exp:"<p>This example is used to build intuition for a somewhat counter-intuitive equivalence: 'simpler model' = 'more restrictive assumptions' = 'higher bias.' A flat-line speed model is simple to write down, but only matches reality if you assume away all the real-world complexity (traffic, signals) — that's a strong, restrictive assumption, i.e. high bias. The wavy curve requires fewer such assumptions (it lets speed vary freely to match what actually happens) and is therefore lower-bias but more complex. This is exactly backwards from the naive intuition that 'more assumptions = more accurate,' which is why it's worth drilling.</p>"
+},
+
+{ topic:"vc", q:"What is meant by 'shattering' a set of points, and which statements about it are correct?",
+  options:[
+    {t:"A hypothesis space H shatters a set of N points if, for at least one arrangement of those N points, H contains a hypothesis matching every one of the 2^N possible positive/negative labelings", c:true},
+    {t:"If a hypothesis space can shatter a set of points, it means that set's points can be given any conceivable label combination and some member of H will fit it perfectly", c:true},
+    {t:"Shattering requires that H fits every possible arrangement of N points, not just one favorable arrangement", c:false},
+    {t:"Shattering is a way of measuring how expressive/flexible a hypothesis space is", c:true}
+  ],
+  exp:"<p>The definition only requires <i>one</i> favorable configuration of the N points to exist for which all 2^N labelings are achievable — it does not require every arrangement of N points to be shatterable. This subtlety is exactly what trips people up and is exactly what's tested by the '3 points, one bad arrangement vs. one good arrangement' example in the deck: straight lines can't shatter 3 collinear-ish points laid out one specific (unlucky) way, but they CAN shatter 3 points laid out a different way — and that single favorable arrangement is enough to say 'straight lines shatter 3 points.'</p>"
+},
+
+{ topic:"vc", q:"The deck shows that straight lines in a 2D plane can shatter 3 points (for a favorable arrangement) but cannot shatter any arrangement of 4 points. What is the correct conclusion, and why does the specific arrangement of 3 points matter?",
+  options:[
+    {t:"The VC-dimension of the hypothesis space of straight lines in 2D is 3", c:true},
+    {t:"For some particular arrangements of exactly 3 points (e.g. one point positioned such that its label can't be flipped independently of the others by any line), straight lines fail to achieve all 8 labelings", c:true},
+    {t:"But because at least one arrangement of 3 points IS fully shatterable, the VC-dimension is still 3, not 2", c:true},
+    {t:"VC-dimension is defined using the worst-case (least favorable) arrangement of points, not the best case", c:false},
+    {t:"Since no arrangement of 4 points can be shattered, VC-dimension caps at 3 for this hypothesis space", c:true}
+  ],
+  exp:"<p>This is one of the most commonly mis-stated definitions in ML interviews. VC-dimension is defined via a <b>best-case existential</b> quantifier over arrangements ('does THERE EXIST an arrangement of N points that can be shattered'), combined with 'and NO arrangement of N+1 points can be shattered.' So a hypothesis class can fail to shatter some unlucky arrangements of N points and still have VC-dimension ≥ N, as long as one lucky arrangement works. For 2D lines: some arrangement of 3 points is fully shatterable (max), but no arrangement of 4 points is (2^4=16 labelings; a line can only realize a subset, notably not the classic 'XOR-like' diagonal labeling), so VC-dim = 3.</p>"
+},
+
+{ topic:"vc", q:"What is the VC-dimension of the hypothesis class of axis-aligned rectangles in a 2D plane, and why?",
+  options:[
+    {t:"The VC-dimension is 4", c:true},
+    {t:"4 points arranged in a diamond (one point extremal in each of the up/down/left/right directions) can realize all 16 possible +/- labelings using an axis-aligned rectangle", c:true},
+    {t:"No arrangement of 5 points can be shattered by axis-aligned rectangles", c:true},
+    {t:"Axis-aligned rectangles have infinite VC-dimension because a rectangle can be drawn arbitrarily large or small", c:false},
+    {t:"Being able to draw infinitely many different rectangles automatically implies infinite VC-dimension", c:false}
+  ],
+  exp:"<p>This is a classic worked VC-dimension example precisely because it shows that having infinitely many candidate hypotheses (infinitely many rectangles by position/size) does NOT imply infinite VC-dimension — what matters is the maximum number of points whose label combinations can all be realized. With 4 points in a 'diamond' arrangement, you can independently include/exclude each extremal point via rectangle placement, hitting all 2^4=16 labelings; but with 5 points, by pigeonhole one point ends up strictly inside the convex hull of the others in every rectangle that contains them, so you can never label it negative while the surrounding points are positive. Hence VC-dim = 4.</p>"
+},
+
+{ topic:"vc", q:"According to the VC-dimension generalization bound shown in the slides (test error < training error + a complexity term that grows with D, the VC-dimension, and shrinks with N, the number of training samples), which statements are correct?",
+  options:[
+    {t:"Holding N fixed, increasing the VC-dimension D tends to loosen (worsen) the bound on test error, all else equal", c:true},
+    {t:"The bound is stated as applicable specifically when D is much smaller than N (D ≪ N)", c:true},
+    {t:"A higher VC-dimension means a more expressive/flexible model, which raises the risk of overfitting and hence a larger potential test-training error gap", c:true},
+    {t:"This bound guarantees the test error will always be exactly equal to the training error", c:false},
+    {t:"This kind of bound is a formal, theoretical justification for why 'more expressive models need proportionally more data to generalize reliably'", c:true}
+  ],
+  exp:"<p>This VC bound (from statistical learning theory / PAC learning) is the rigorous backbone behind the intuitive 'more complex models need more data' rule of thumb used throughout ML practice. It's a probabilistic upper bound, not an equality — it says test error is <i>likely</i> to be within training error plus a term that grows with model complexity (D) and shrinks with sample size (N). This is exactly the theoretical grounding for practical heuristics like 'don't use a 175B-parameter model on 500 rows' or 'if you scale up model capacity, scale up your training data too.'</p>"
+},
+
+{ topic:"inductive", q:"Which of the following are correctly described as inductive-bias decisions an ML engineer explicitly makes when designing a model, as opposed to something the data determines automatically?",
+  options:[
+    {t:"Choosing a linear model vs. a decision tree vs. a neural network", c:true},
+    {t:"Choosing the maximum depth of a decision tree", c:true},
+    {t:"Adding an L2 regularization penalty that shrinks weights toward zero", c:true},
+    {t:"The actual numeric values the training data happens to contain", c:false},
+    {t:"Choosing a convolutional architecture that assumes spatial locality/translation-invariance matters for image data", c:true}
+  ],
+  exp:"<p>Everything in this list except the raw data values is a design choice that encodes an assumption about the world — model family (restriction bias), tree depth (restriction bias, controls the size of the reachable hypothesis space), L2 penalty (preference bias, favors small-weight solutions), and even architectural choices like convolution (restriction+preference bias baked in: 'nearby pixels matter more, and the same filter should apply everywhere in the image') are all inductive biases chosen by the practitioner. The raw data values themselves are just observations — they're what the bias gets applied <i>to</i>, not a form of inductive bias.</p>"
+},
+
+{ topic:"features", q:"Which statements correctly describe the relationship between raw data, features, and feature vectors, as introduced in the slides?",
+  options:[
+    {t:"A feature is a characteristic or property that describes an instance of data, e.g. height or weight", c:true},
+    {t:"Features are sometimes also called attributes", c:true},
+    {t:"A feature vector is a vector whose dimensions are individual features", c:true},
+    {t:"Raw data (e.g. an image) can be used directly by some models without manually engineering explicit features", c:true},
+    {t:"Feature engineering is unnecessary for every single ML algorithm, including all classical (non-deep-learning) methods", c:false}
+  ],
+  exp:"<p>Feature vs. feature vector is basic vocabulary: individual measurable properties (height, sepal width, pixel intensity) are features; stacking them for one example gives a feature vector, e.g. (sepal_length=5.1, sepal_width=3.5, petal_length=1.4, petal_width=0.2). Modern deep nets (CNNs on raw pixels, transformers on raw tokens) can skip hand-engineered features and learn representations end-to-end — but that's specifically a deep-learning capability; classical algorithms like logistic regression, SVMs with hand-picked kernels, or gradient-boosted trees on tabular data still typically need engineered/selected features to perform well.</p>"
+},
+
+{ topic:"features", q:"Where can features come from, according to the slides ('How to Obtain Features')?",
+  options:[
+    {t:"Direct measurement at data-collection time, e.g. recording an animal's height and weight", c:true},
+    {t:"Computation from raw data, e.g. extracting texture descriptors or SIFT keypoints from an image", c:true},
+    {t:"Manual feature engineering by a domain expert", c:true},
+    {t:"Many neural network methods can consume raw data directly, learning useful internal representations without hand-engineered input features", c:true},
+    {t:"Features can only ever be numbers measured with a physical instrument", c:false}
+  ],
+  exp:"<p>Feature acquisition spans a spectrum from fully manual (a doctor recording a patient's blood pressure) to fully learned (a CNN's early layers learning edge/texture detectors on its own from raw pixels). Classical computer vision relied on hand-designed descriptors (SIFT, HOG, texture filters) before deep learning made raw-pixel-in, learned-features-out common. Features certainly don't require a physical instrument — a categorical flag, a ratio computed from two other columns, or a one-hot encoded string are all valid engineered features.</p>"
+},
+
+{ topic:"features", q:"In a 2D feature space where x1 = height and x2 = weight are used to separate cats from dogs, which statements are correct?",
+  options:[
+    {t:"Each individual animal (data instance) corresponds to a single point plotted in this 2D space", c:true},
+    {t:"The space defined by the chosen features is called the feature space", c:true},
+    {t:"A straight line (or curve) that separates the cat points from the dog points is one example of a hypothesis", c:true},
+    {t:"Using more features always makes a linear classifier strictly easier to learn with less data", c:false},
+    {t:"If cats and dogs happen to overlap heavily in (height, weight) space, adding a third informative feature (e.g. whisker length) could make them separable where 2 features could not", c:true}
+  ],
+  exp:"<p>Feature space is literally the coordinate system the model reasons in — the choice of which features to include changes the geometry of the problem, sometimes making an otherwise inseparable problem separable (this is the core motivation behind kernel methods and feature engineering generally: project into a space where classes become linearly separable). But more features is not free — it increases the dimensionality of the space the model must learn to reason about, which (per the curse of dimensionality) typically requires <i>more</i>, not less, data to reliably estimate a good decision boundary, all else equal.</p>"
+},
+
+{ topic:"features", q:"Which of the following correctly describes 'the data' X as discussed for building a supervised model — considering that X can be raw data or a feature vector?",
+  options:[
+    {t:"X can be raw, unstructured data such as an image or an audio waveform", c:true},
+    {t:"X can be a structured feature vector such as (sepal length, sepal width, petal length, petal width)", c:true},
+    {t:"The label Y is considered part of X during training", c:false},
+    {t:"Choosing whether to use raw data vs. engineered features is itself a modeling decision with tradeoffs (e.g. raw data needs more model capacity/data; engineered features need domain expertise)", c:true}
+  ],
+  exp:"<p>X (inputs) and Y (labels/targets) are always kept conceptually and practically separate — Y is what the model is trying to predict, never an input feature (leaking Y into X, even indirectly through a derived feature, is the classic 'target leakage' bug that silently inflates offline metrics and then fails in production). The raw-vs-engineered-features choice is a genuine engineering tradeoff: raw pixel/audio input pushes representation learning onto the model (which then needs more capacity and usually more data), while hand-engineered features front-load domain knowledge but require that expertise to be available and correct.</p>"
+},
+
+{ topic:"biasvariance", q:"Two models are fit to the same training data: Model 1 is a straight line (green), Model 2 is a high-degree polynomial that passes through every single training point exactly (red, wiggly). Which statements about their expected behavior are correct?",
+  options:[
+    {t:"Model 2 (the wiggly curve) will have lower — often zero — training error than Model 1", c:true},
+    {t:"Model 1 (the straight line) will tend to produce more consistent (similar) error across several different, freshly drawn test sets", c:true},
+    {t:"Model 2 will tend to produce highly inconsistent error across different test sets, since it fit noise specific to the training sample", c:true},
+    {t:"Model 1 has higher bias and lower variance; Model 2 has lower bias and higher variance", c:true},
+    {t:"Model 2 is guaranteed to have lower test error than Model 1 on new data", c:false}
+  ],
+  exp:"<p>This is the deck's core empirical demonstration of bias-variance tradeoff using repeated test sets. The wiggly high-degree curve minimizes training error (possibly to zero) by chasing noise unique to that particular training sample — that noise-fitting is exactly what makes its performance swing wildly (high variance) across different, independently drawn test sets. The straight line under-fits some of the fine structure (higher bias) but that same rigidity makes it robust/consistent across resamples (low variance). Crucially, lower training error does NOT imply lower test error — that's the overfitting trap.</p>"
+},
+
+{ topic:"biasvariance", q:"Formally, which statements correctly define 'bias' and 'variance' of a model in the bias-variance decomposition sense?",
+  options:[
+    {t:"Bias is the gap between a model's average prediction (across many resamples/training runs) and the true value being predicted", c:true},
+    {t:"Variance is how much a model's predictions fluctuate across different training sets drawn from the same distribution", c:true},
+    {t:"A model with high bias pays little attention to the training data and oversimplifies, leading to high error on both training and test data", c:true},
+    {t:"Bias measures how noisy a single test set's labels are, unrelated to the model at all", c:false},
+    {t:"A model can simultaneously be high-bias on some regions of the input space and low-bias on others", c:true}
+  ],
+  exp:"<p>These are the textbook statistical definitions used throughout ML theory and directly quoted from the slides. Bias is a property of the <i>model's average behavior</i> relative to ground truth (a systematic error), while variance is a property of how <i>sensitive</i> that behavior is to which particular training sample you happened to draw — it is not about label noise itself, which is irreducible ('Bayes error'), separate from both bias and variance. In practice, bias/variance can indeed vary locally — e.g. a linear model might fit a linear region of the true function well (low local bias) but badly miss a curved region (high local bias there).</p>"
+},
+
+{ topic:"biasvariance", q:"Which statements correctly connect model complexity to bias and variance?",
+  options:[
+    {t:"More restrictive assumptions (a simpler model) generally correspond to higher bias and lower variance", c:true},
+    {t:"Fewer restrictive assumptions (a more complex/flexible model) generally correspond to lower bias and higher variance", c:true},
+    {t:"Underfitting is associated with high bias and relatively low variance", c:true},
+    {t:"Overfitting is associated with low bias (on the training set) and high variance", c:true},
+    {t:"It's possible to simultaneously minimize both bias and variance by simply increasing model complexity without limit", c:false}
+  ],
+  exp:"<p>The bias-variance tradeoff is called a tradeoff precisely because these two error sources move in opposite directions as you slide the complexity dial — you cannot drive both to zero simultaneously with a fixed amount of training data. Underfitting = the model is too rigid to capture real structure (high bias) but is stable across resamples (low variance). Overfitting = the model is flexible enough to fit noise (low training-set bias) but that flexibility makes it wildly sensitive to which noise it happened to see (high variance). The practical goal is finding the complexity sweet spot, not maximizing complexity.</p>"
+},
+
+{ topic:"biasvariance", q:"In the classic 'Error vs. Model Complexity' chart (training error monotonically decreasing, test error U-shaped), which statements are correct?",
+  options:[
+    {t:"Training error keeps decreasing (or at worst staying flat) as complexity increases", c:true},
+    {t:"Test/validation error decreases at first, reaches a minimum, then increases again as complexity keeps growing", c:true},
+    {t:"The complexity level at the minimum of the test-error curve is the target 'optimum model complexity' — not the complexity that minimizes training error", c:true},
+    {t:"To the right of that optimum, the growing gap between training error (still low) and test error (rising) is the visual signature of overfitting", c:true},
+    {t:"Training error and test error are always numerically equal at every complexity level", c:false}
+  ],
+  exp:"<p>This U-shaped test-error curve is one of the single most important charts in applied ML — it's what justifies practices like early stopping, cross-validated hyperparameter search, and held-out validation sets in the first place. The optimum sits where test/validation error bottoms out, which is essentially never the same point where training error is lowest (training error keeps improving, or at least doesn't get worse, all the way to the most complex/overfit end). Watching the train-test gap widen as you keep adding complexity is literally how engineers detect overfitting in a training log.</p>"
+},
+
+{ topic:"biasvariance", q:"A team has only 5 training examples, all fairly similar to each other. Which statements correctly capture the risk discussed regarding small/homogeneous datasets and overfitting?",
+  options:[
+    {t:"With very little or very homogeneous training data, it's often easy (or even trivial) to design a model that fits all of the training points exactly", c:true},
+    {t:"Perfectly fitting a small or homogeneous training set is a red flag, not necessarily a sign of a good model, because it may not generalize", c:true},
+    {t:"With a large amount of sufficiently diverse training data, it becomes practically impossible for a fixed-capacity model to fit every point exactly while also generalizing well", c:true},
+    {t:"Training-data diversity is described as a mechanism that helps prevent overfitting", c:true},
+    {t:"Achieving zero training error is always evidence that the model has learned the true underlying function", c:false}
+  ],
+  exp:"<p>This is a practical, often-overlooked corollary of the bias-variance discussion: a suspiciously perfect training fit is much easier — and much less meaningful — when you have few or very similar samples, because there's less true signal-vs-noise diversity to distinguish. As dataset size and diversity grow, a model that can still hit every training point exactly is almost certainly memorizing rather than generalizing (which is exactly why held-out validation, not training accuracy, is the metric that matters). This is also the core justification for data augmentation and collecting more diverse examples as an anti-overfitting technique, distinct from regularization.</p>"
+},
+
+{ topic:"biasvariance", q:"Which of the following are practical techniques an ML engineer would use specifically to reduce overfitting (high variance) rather than to reduce underfitting (high bias)?",
+  options:[
+    {t:"Adding L1/L2 regularization to the loss function", c:true},
+    {t:"Collecting more diverse training data", c:true},
+    {t:"Reducing model capacity (e.g. shallower trees, fewer layers)", c:true},
+    {t:"Early stopping based on validation loss", c:true},
+    {t:"Increasing model capacity by adding more parameters", c:false}
+  ],
+  exp:"<p>All four listed techniques directly reduce variance: regularization constrains the effective hypothesis space toward 'simpler' solutions, more diverse data makes it harder to memorize noise, reducing capacity shrinks the reachable hypothesis space, and early stopping halts training before the model starts fitting noise past the point where validation loss starts rising. Increasing capacity does the opposite — it's the standard fix for <i>underfitting</i> (high bias), not overfitting, and would typically make an already-overfit model worse.</p>"
+},
+
+{ topic:"biasvariance", q:"Which of the following are practical signs, observed during model training/evaluation, that a model is underfitting rather than overfitting?",
+  options:[
+    {t:"Both training error and validation error are high and close to each other", c:true},
+    {t:"The model's predictions look 'too smooth' relative to visible structure in a scatterplot of the data", c:true},
+    {t:"Validation error is much higher than training error, with a large and growing gap", c:false},
+    {t:"Adding more training data barely improves either training or validation performance", c:true}
+  ],
+  exp:"<p>Underfitting shows up as consistently poor performance everywhere (train and validation both bad, roughly equal), because the model's hypothesis space is simply too restrictive to capture the pattern regardless of how much data you throw at it — which is exactly why 'just collect more data' doesn't fix a genuinely underfit model, you need more capacity/features/a richer model family instead. A large, growing train-validation gap is the signature of overfitting, not underfitting — that's the opposite pattern.</p>"
+},
+
+{ topic:"biasvariance", q:"A model shows training accuracy = 99% and validation accuracy = 68%. Which are appropriate next diagnostic/remedial steps?",
+  options:[
+    {t:"Suspect overfitting, given the large train-validation gap", c:true},
+    {t:"Try adding regularization or reducing model complexity", c:true},
+    {t:"Try collecting more / more diverse training data if feasible", c:true},
+    {t:"Immediately conclude the model architecture is fundamentally too simple and needs more parameters", c:false},
+    {t:"Check for data leakage that might be artificially inflating the training accuracy specifically (e.g. duplicate rows across train/val, or a leaked feature)", c:true}
+  ],
+  exp:"<p>A 31-point train-validation gap is a textbook overfitting signature, so the standard playbook is: (1) regularize/simplify, (2) get more/more-diverse data, and (3) rule out leakage — a subtly leaked feature or overlapping train/val rows can produce exactly this pattern (suspiciously high training performance) and is a very common real-world root cause that's easy to overlook if you jump straight to 'add regularization.' Increasing model complexity would almost certainly make this specific problem worse, not better — that's the fix for the opposite symptom (underfitting).</p>"
+},
+
+{ topic:"biasvariance", q:"Which statements correctly summarize the 'sweet spot' goal in the bias-variance tradeoff, per the classic 3-panel picture (high variance / high bias / good balance)?",
+  options:[
+    {t:"We want both low bias and low variance, but achieving one perfectly typically costs us on the other", c:true},
+    {t:"'Good balance' in that picture corresponds to a fitted curve that follows the true underlying trend without chasing every noisy data point", c:true},
+    {t:"The 'high variance' panel corresponds to overfitting; the 'high bias' panel corresponds to underfitting", c:true},
+    {t:"There exists one universal complexity level that is optimal for every dataset regardless of its size or noise level", c:false}
+  ],
+  exp:"<p>The optimal complexity is not a universal constant — it depends on the specific dataset's size, noise level, and the true underlying function's complexity, which is exactly why practitioners use validation curves / learning curves and cross-validation to find the right complexity <i>for their specific problem</i> rather than hard-coding a model size. The 3-panel picture is a mnemonic, not a formula: it just visually anchors 'wiggly line hitting every point = overfitting = high variance' vs. 'flat line ignoring curvature = underfitting = high bias' vs. 'smooth curve tracking the trend = the target.'</p>"
+},
+
+{ topic:"biasvariance", q:"Regarding the relationship between VC-dimension and the bias-variance tradeoff, which statements are correct?",
+  options:[
+    {t:"A hypothesis space with higher VC-dimension is generally more expressive and thus more prone to lower bias but higher variance", c:true},
+    {t:"A hypothesis space with lower VC-dimension is generally more restrictive and thus more prone to higher bias but lower variance", c:true},
+    {t:"VC-dimension gives a formal, complexity-based way to reason about the same underfitting/overfitting tradeoff illustrated informally with the wiggly-curve examples", c:true},
+    {t:"VC-dimension and model variance are completely unrelated concepts", c:false}
+  ],
+  exp:"<p>VC-dimension is the formal/theoretical lens on the same phenomenon the wiggly-vs-straight-line pictures illustrate informally — it quantifies 'how many different labelings can this hypothesis class realize,' and a class that can realize more labelings (higher VC-dim) is, all else equal, more capable of fitting noise in any specific training sample (higher variance), while a class that can realize fewer labelings (lower VC-dim) is more constrained and thus more stable but potentially unable to capture real structure (higher bias). This connects the intuitive bias-variance story directly to the rigorous generalization bound covered earlier.</p>"
+},
+
+{ topic:"biasvariance", q:"Which statements are true about the difference between 'irreducible error' (sometimes called Bayes error / noise) and the bias/variance components of prediction error?",
+  options:[
+    {t:"Irreducible error comes from inherent randomness or unmeasured factors in the data-generating process, not from the choice of model", c:true},
+    {t:"No amount of model selection, tuning, or additional training data can eliminate irreducible error", c:true},
+    {t:"Bias and variance are, in principle, reducible by changing the model or getting more/better data", c:true},
+    {t:"Irreducible error is technically part of the same 'bias' term used in the deck's definition of bias", c:false}
+  ],
+  exp:"<p>Although the deck's slides focus on bias and variance, the fuller statistical-learning picture (expected test error = bias² + variance + irreducible error) is exactly the kind of extension an interviewer will push you toward. Irreducible error is a property of the problem itself — e.g. two patients with identical measured features can still have different outcomes due to factors you never measured — and it sets a hard floor on achievable test error that no amount of modeling cleverness can beat. Bias and variance, by contrast, are properties of your <i>chosen model and data</i>, and are the two levers you actually control.</p>"
+},
+
+{ topic:"biasvariance", q:"Suppose you plot training error and test error against increasing model complexity, and you notice the two curves are already diverging significantly even at low complexity, with test error much worse than training error throughout. What would you check?",
+  options:[
+    {t:"Whether the training and test sets come from meaningfully different distributions (train/test mismatch, e.g. train on studio photos, test on phone photos)", c:true},
+    {t:"Whether there's a bug causing the test set to be scored incorrectly, e.g. mismatched label ordering", c:true},
+    {t:"Whether the test set is simply too small to give a stable error estimate", c:true},
+    {t:"You should conclude this is a classic case of the model underfitting only, with no other explanation possible", c:false}
+  ],
+  exp:"<p>An unusually persistent train/test gap even at low model complexity is a strong signal to look <i>beyond</i> the bias-variance framing entirely, toward data or pipeline problems: distribution shift between train and test (the model learned a real pattern that just doesn't hold on the test distribution), evaluation bugs (shuffled labels, wrong preprocessing applied at test time), or a test set too small to be a reliable estimate (high variance in the <i>error estimate itself</i>, distinct from model variance). Jumping straight to 'the model underfits' without ruling these out is a common and costly mistake in real debugging.</p>"
+},
+
+{ topic:"biasvariance", q:"Which statements are true regarding how dataset size interacts with the bias-variance tradeoff?",
+  options:[
+    {t:"For a fixed model complexity, increasing training set size tends to reduce variance (the model's fit becomes less sensitive to which particular sample it saw)", c:true},
+    {t:"For a fixed model complexity, increasing training set size does not change the model's bias, since bias is driven by the hypothesis space's restrictiveness, not by sample count", c:true},
+    {t:"A learning curve that shows training and validation error converging to a similarly high error as data grows suggests high bias (underfitting), which more data alone won't fix", c:true},
+    {t:"A learning curve that shows a persistent, wide gap between low training error and high validation error even as data grows suggests high variance (overfitting)", c:true},
+    {t:"More training data can never help an overfitting model", c:false}
+  ],
+  exp:"<p>This is the practitioner's mental model behind reading learning curves (error vs. training-set-size), a very common interview whiteboard exercise: variance shrinks as N grows because the sampled training set becomes a more faithful representative of the true distribution, but bias is essentially fixed by model capacity choice, so a genuinely underfit model plateaus at high error regardless of data size — the fix there is more capacity/better features, not more rows. An overfitting model, in contrast, usually DOES benefit from more data, since more diverse examples make it harder to memorize noise, even without touching model capacity.</p>"
+},
+
+{ topic:"prep", q:"Which data quality problems are explicitly called out as common challenges when preparing real-world data for ML (noise, missing data, duplicates, inconsistency)?",
+  options:[
+    {t:"Noisy values, e.g. an 'Age' column containing 200 or -22", c:true},
+    {t:"Missing values, e.g. a blank Student ID or blank GPA", c:true},
+    {t:"Inconsistent formatting, e.g. 'Sr' vs. 'Senior' vs. 'Jr' used inconsistently to encode the same category", c:true},
+    {t:"Duplicate records", c:true},
+    {t:"A dataset can never contain more than one of these problems at the same time", c:false}
+  ],
+  exp:"<p>Real datasets routinely contain several of these simultaneously — the same student-records table in the slides shows noisy ages, missing GPAs, and inconsistent class-year labels all at once. In an interview, being able to name these categories specifically (rather than a vague 'the data was messy') signals that you've actually done hands-on data cleaning, and it also maps directly onto specific fixes: outlier/range checks for noise, imputation or deletion for missing values, and canonicalization/standard-vocabulary mapping for inconsistency.</p>"
+},
+
+{ topic:"prep", q:"Which statements correctly describe strategies for handling missing values, per the slides (data deletion vs. imputation)?",
+  options:[
+    {t:"Data deletion (dropping rows/columns with missing values) results in a loss of data/information", c:true},
+    {t:"Imputation can be done via an informed guess or via a regression model that predicts the missing value from other features", c:true},
+    {t:"Deleting a row is always strictly better than imputing, with no downsides", c:false},
+    {t:"If a column is missing for a large fraction of rows, deleting that entire row-set may bias the remaining dataset toward the subpopulation where the feature happens to be recorded", c:true}
+  ],
+  exp:"<p>The deletion-vs-imputation choice is a real bias/variance-style tradeoff on the data side: deletion is simple and avoids introducing 'fake' values, but it shrinks your sample and can introduce selection bias if missingness isn't random (e.g. income is disproportionately unreported by high earners — dropping those rows skews the remaining data). Imputation (mean/median/mode, or a regression/kNN model trained to predict the missing field from other columns) preserves sample size but injects estimated rather than observed values, which understates true uncertainty if not handled carefully (e.g. via multiple imputation).</p>"
+},
+
+{ topic:"prep", q:"Which statements correctly describe techniques for dealing with noisy data mentioned in the slides (binning, regression, outlier analysis)?",
+  options:[
+    {t:"Binning: split values into bins and replace each value with a bin-level summary statistic (e.g. the bin's mean)", c:true},
+    {t:"Regression: fit a function to the data and use it to smooth out noisy points", c:true},
+    {t:"Outlier analysis: explicitly detect and (often) treat abnormal, extreme values", c:true},
+    {t:"Noise-handling is only necessary for categorical columns, never for numeric columns", c:false}
+  ],
+  exp:"<p>All three are legitimate, complementary noise-reduction techniques: binning trades resolution for robustness (smoothing local fluctuations), regression-based smoothing assumes an underlying trend and denoises around it, and outlier analysis specifically targets extreme/implausible values (like Age=200 in the slide's example) using statistical rules (z-score, IQR) or domain-specific range checks. Noise is at least as common in numeric columns (measurement error, sensor glitches, data-entry typos) as in categorical ones — the 'Age = 200' and 'Age = -22' examples in the deck are both numeric.</p>"
+},
+
+{ topic:"prep", q:"A hospital lab has two features: Hemoglobin (normal ≈ 13,500 mg/dL) and Creatinine (normal ≈ 0.7 mg/dL). Without scaling, why can raw absolute deviations mislead an analysis or a distance-based ML model?",
+  options:[
+    {t:"A deviation of 1,000 mg/dL in Hemoglobin looks 'huge' in raw units, while a deviation of 1 mg/dL in Creatinine looks 'small,' even though the second may represent a much larger relative/medically significant change", c:true},
+    {t:"Features measured on very different numeric scales can dominate a Euclidean-distance or gradient-based computation simply because of their units, not because they're actually more informative", c:true},
+    {t:"This is exactly the motivation for feature scaling/normalization before applying distance-based methods (like k-NN, k-means) or gradient-based optimization", c:true},
+    {t:"Scaling features is purely cosmetic and has no effect on any ML algorithm's actual output", c:false}
+  ],
+  exp:"<p>This hemoglobin/creatinine example is a perfect illustration of a very real production bug: raw-unit deviations conflate 'large number' with 'clinically/statistically important,' which is backwards here — a Creatinine change from 0.7 to 1.7 (a 2.4x relative increase, clinically significant for kidney function) looks numerically tiny next to a Hemoglobin swing of 1,000 mg/dL that might be within normal biological variance. Any algorithm relying on distances or magnitudes (k-NN, k-means, SVM with RBF kernel, gradient descent with unscaled features) will let the large-magnitude feature dominate purely due to units — this is a real bug pattern, not a cosmetic issue, and it's the standard justification for feature scaling before training.</p>"
+},
+
+{ topic:"prep", q:"Which statements correctly describe z-score standardization, defined as f'_i = (f_i − μ_f) / σ_f ?",
+  options:[
+    {t:"After standardization, the transformed feature has mean 0 and standard deviation 1", c:true},
+    {t:"μ_f and σ_f should be computed from the training set and then reused (not recomputed) to transform the validation/test set", c:true},
+    {t:"Standardization is also known as z-score normalization", c:true},
+    {t:"Standardization bounds every transformed value strictly within the fixed range [0, 1]", c:false},
+    {t:"If σ_f = 0 for a feature (i.e. it's constant across all training rows), naive z-score standardization involves a division by zero", c:true}
+  ],
+  exp:"<p>This is the standard 'fit on train, transform on train/val/test using train's statistics' rule — recomputing μ and σ separately on the validation or test set is a classic data-leakage-adjacent bug (it lets test-set information subtly influence preprocessing, and it also means train and test features aren't on a genuinely comparable scale). Unlike min-max scaling, z-scores are unbounded — a value 5 standard deviations out stays a large number, it isn't clipped into [0,1]. And yes, a zero-variance (constant) feature breaks the formula outright — in practice you'd drop or special-case such a feature before standardizing.</p>"
+},
+
+{ topic:"prep", q:"Which statements correctly describe min-max normalization, defined as f'_i = (f_i − min) / (max − min) ?",
+  options:[
+    {t:"After min-max normalization, transformed values fall within [0, 1] for every value seen during fitting (assuming max ≠ min)", c:true},
+    {t:"Min and max should be computed from the training data and then applied to transform new/unseen data, potentially producing values slightly outside [0, 1] on unseen data with more extreme values", c:true},
+    {t:"Min-max normalization is highly sensitive to outliers, since a single extreme value stretches the min or max and compresses everything else toward one end", c:true},
+    {t:"Min-max normalization guarantees the resulting feature has mean 0", c:false}
+  ],
+  exp:"<p>Min-max scaling is bounded but fragile: because the transform is entirely defined by the two most extreme observed values, a single outlier (say, one data-entry error of Age=200) will crush every other legitimate value into a tiny sliver of the [0,1] range, destroying the resolution needed to distinguish 'normal' values from each other. Z-score standardization is comparatively more robust to this specific failure mode (though not immune), which is why the choice between them is itself a data-dependent decision — min-max when you truly know the bounds and want a fixed range (e.g. pixel intensities 0–255), z-score when the data may have unbounded outliers.</p>"
+},
+
+{ topic:"prep", q:"Why does feature scale specifically matter for gradient-descent-based training (as opposed to, say, a decision tree), and which statements are correct?",
+  options:[
+    {t:"With very different feature scales, the loss surface (contour plot of the objective vs. parameters) becomes elongated/skewed, making gradient descent zig-zag and converge slowly", c:true},
+    {t:"Decision trees split on a single feature's threshold at a time, so they are largely insensitive to monotonic rescaling of individual features", c:true},
+    {t:"Scaling features can allow a single, larger learning rate to be used safely across all parameters", c:true},
+    {t:"Feature scaling changes the fundamental family of function the model can represent (e.g. turns a linear model into a nonlinear one)", c:false}
+  ],
+  exp:"<p>This is a very common 'why does X help' interview question. Gradient descent takes steps proportional to the gradient in each parameter's direction; if one feature's scale is 10,000x another's, the loss surface becomes a long, narrow valley, and a step size that's safe for the small-scale direction is far too small (slow convergence) or a step size safe for the large-scale direction overshoots wildly in the small one — scaling features to comparable ranges makes the surface closer to circular/well-conditioned, letting one learning rate work well for all parameters. Tree-based splits ('is Hemoglobin > 13,000?') are threshold comparisons that are unaffected by any monotonic transform of that one feature, which is exactly why trees/forests/GBMs are commonly used <i>without</i> feature scaling.</p>"
+},
+
+{ topic:"prep", q:"Which of the following statements about handling inconsistent categorical data (e.g. 'Sr' vs. 'Senior' vs. 'Jr' meaning the same class years) are correct?",
+  options:[
+    {t:"Inconsistent category labels should typically be mapped to one canonical vocabulary before encoding (e.g. one-hot encoding)", c:true},
+    {t:"Failing to canonicalize inconsistent labels can cause a model to treat 'Sr' and 'Senior' as two entirely different, unrelated categories", c:true},
+    {t:"This kind of inconsistency is a data-quality issue distinct from missing values or noisy numeric outliers, even though all three fall under 'data cleaning'", c:true},
+    {t:"One-hot encoding can safely be applied without first checking for and resolving label inconsistency", c:false}
+  ],
+  exp:"<p>This is an underrated, extremely common real-world bug: without canonicalization, one-hot encoding (or any categorical encoder) will silently create separate columns/embeddings for 'Sr' and 'Senior,' splitting what should be one category's statistical signal across two sparse, weaker features — the model doesn't 'know' they mean the same thing unless you tell it. This is exactly the kind of bug that degrades a model's performance without throwing any error, making it especially dangerous; a quick unique-value audit per categorical column before encoding is standard practice for exactly this reason.</p>"
+},
+
+{ topic:"prep", q:"Which of the following statements correctly describe why 'garbage in, garbage out' is emphasized for ML, per the slide 'Good ML models can't be designed without good quality data'?",
+  options:[
+    {t:"No model architecture, however sophisticated, can reliably learn a correct pattern from systematically corrupted or mislabeled data", c:true},
+    {t:"Cleaning data (deduplication, consistency fixes, outlier handling, imputation) often yields larger performance gains than switching to a fancier model", c:true},
+    {t:"Some data problems (e.g. systematic labeling bias) may require domain expertise to even detect, let alone fix", c:true},
+    {t:"Once a dataset has been cleaned once, it never needs to be re-audited even as new data is continuously collected", c:false}
+  ],
+  exp:"<p>This is a widely echoed piece of practitioner wisdom (often summarized as 'data-centric AI'): in many real projects, hours spent auditing labels and fixing systematic data issues beat hours spent tuning hyperparameters or trying bigger architectures, because a model can only ever be as good as the signal actually present in its training data. Some issues (a subtly biased labeling process, a sensor that silently started drifting) require domain expertise to even notice — and because production data pipelines keep ingesting new data, data quality is an ongoing monitoring concern, not a one-time cleanup task.</p>"
+},
+
+{ topic:"prep", q:"You standardize (z-score) your training features and train a model. At serving time, a new data point arrives with a Hemoglobin value of 40,000 mg/dL (far beyond anything seen in training). Which statements are correct?",
+  options:[
+    {t:"Applying the training-set μ and σ to this new value will still produce a valid (if large) z-score, since the formula itself doesn't require the input to lie within the training range", c:true},
+    {t:"This extreme value should also raise a data-quality flag — it might indicate a sensor error, unit mismatch (e.g. mg/dL vs. µg/dL), or genuinely anomalous input worth routing for manual review", c:true},
+    {t:"Standardization automatically detects and removes such an outlier before it reaches the model", c:false},
+    {t:"Preprocessing/scaling and outlier detection are two separate concerns — scaling doesn't substitute for input validation in a production ML pipeline", c:true}
+  ],
+  exp:"<p>This tests whether you understand that standardization is a linear rescaling, not a safety mechanism — it will happily compute a z-score of, say, +40 for a wildly anomalous input rather than flagging or clipping it. In a production system, that's precisely why serious ML pipelines add an explicit input-validation/anomaly-detection layer (range checks, schema validation, drift monitors) upstream or alongside the model, rather than assuming feature scaling alone will protect the model from garbage or out-of-distribution inputs.</p>"
+},
+
+{ topic:"linreg", q:"For simple linear regression y = mx + c fit to (Work Experience, Gross Salary) data, which statements are correct?",
+  options:[
+    {t:"m and c are the parameters of the model, learned from the training data", c:true},
+    {t:"Assuming a straight-line relationship is itself a restriction (inductive) bias — it rules out any curved relationship a priori", c:true},
+    {t:"Different values of m and c trace out different candidate straight lines, all belonging to the same hypothesis space", c:true},
+    {t:"Once m and c are fixed, the model can only be evaluated on the training data, never on new (x) values", c:false}
+  ],
+  exp:"<p>Choosing 'y = mx + c' as the model family is a textbook restriction bias — it excludes quadratic, exponential, or any other non-linear relationship outright, regardless of what the data might actually look like; the hypothesis space here is literally 'the set of all straight lines,' parameterized by (m, c). Once trained, predicting on brand-new x values (interpolation or, more riskily, extrapolation) is exactly the point of the model — 'only usable on training data' would make the model useless for its actual job.</p>"
+},
+
+{ topic:"linreg", q:"Given several candidate straight lines fit to the same scatter of (experience, salary) points, how do we decide which one is 'best,' and which statements are correct?",
+  options:[
+    {t:"We define an error/loss for each line based on how far its predictions are from the actual training labels", c:true},
+    {t:"We prefer the line with the smallest total error across the training data", c:true},
+    {t:"The vertical distance between a predicted point on the line and the actual data point is used to compute per-point error", c:true},
+    {t:"'Best' here is judged purely by how visually pleasing the line looks, with no numeric criterion", c:false}
+  ],
+  exp:"<p>This is the setup for least-squares regression: for each candidate (m, c), you compute a per-point error — specifically the <i>vertical</i> distance y_actual − y_predicted (since x is treated as fixed/known and only y is being predicted, unlike, say, total-least-squares which also accounts for error in x) — sum (or average) it across all training points, and pick the (m, c) that minimizes that total. This turns 'best fit' from a subjective visual judgment into a well-defined optimization problem.</p>"
+},
+
+{ topic:"linreg", q:"The least-squares objective function is J(m, c) = (1/2) Σ (y^(n) − s^(n))², where y^(n) = m·x^(n) + c is the model's prediction and s^(n) is the actual label. Which statements are correct?",
+  options:[
+    {t:"Squaring the per-point error ensures positive and negative errors don't cancel each other out when summed", c:true},
+    {t:"Squaring also penalizes large errors disproportionately more than small errors, compared to using absolute error", c:true},
+    {t:"This objective is called 'least squares' because we search for parameters that minimize this sum of squared errors", c:true},
+    {t:"The factor of 1/2 changes which (m, c) minimizes J compared to leaving it out — it changes the optimal solution", c:false},
+    {t:"J(m, c) is a function purely of the model's parameters, given a fixed training set", c:true}
+  ],
+  exp:"<p>Squaring solves the cancellation problem (a +3 error and a −3 error would otherwise sum to 0, hiding real mistakes) and creates convexity in (m, c), which guarantees a unique global minimum reachable via calculus/gradient descent — this convexity is exactly why linear regression has a closed-form solution (the normal equations) unlike most nonlinear models. The 1/2 factor is purely a convenience — it exists so that the derivative of the squared term (which produces a factor of 2) cancels cleanly, leaving a tidier gradient expression; it does not shift the location of the minimum, since scaling an objective by any positive constant doesn't change where it's minimized.</p>"
+},
+
+{ topic:"linreg", q:"Which statements correctly distinguish simple linear regression from multiple linear regression?",
+  options:[
+    {t:"Simple linear regression uses exactly one input feature: y = mx + c", c:true},
+    {t:"Multiple linear regression uses two or more input features: y = m1·x1 + m2·x2 + ... + mp·xp + c", c:true},
+    {t:"Both are considered 'linear' because the model is linear in its parameters (m1, m2, ..., c), not necessarily because the relationship between raw inputs and output looks like a straight line visually in every dimension", c:true},
+    {t:"Multiple linear regression cannot be optimized with gradient descent, only with a closed-form solution", c:false}
+  ],
+  exp:"<p>The 'linear' in linear regression technically refers to linearity in the <i>parameters</i>, not necessarily in the raw features — this is a subtlety that trips people up and that's worth stating precisely in an interview: even polynomial regression (y = m1·x + m2·x² + c) is a 'linear model' in this sense, because it's linear in (m1, m2, c), even though the fitted curve is visibly nonlinear in x. Multiple linear regression is optimizable by either the closed-form normal equations OR iterative gradient descent — the gradient-descent update rule generalizes cleanly to any number of features (θ_i ← θ_i − η·∂J/∂θ_i for each parameter i).</p>"
+},
+
+{ topic:"linreg", q:"For multiple linear regression, the per-parameter gradient update is θ_i ← θ_i − η·Σ_n (y^(n) − s^(n))·x_i^(n). Which statements are correct?",
+  options:[
+    {t:"The update for parameter θ_i uses the corresponding feature value x_i for that same parameter, not some other feature's values", c:true},
+    {t:"If the current prediction consistently overshoots the true label across many points (y^(n) − s^(n) is consistently positive) for a feature that's consistently positive, θ_i will be decreased", c:true},
+    {t:"This gradient expression comes from differentiating the least-squares objective J(m, c) with respect to θ_i", c:true},
+    {t:"η in this formula represents the number of training examples", c:false}
+  ],
+  exp:"<p>η is the learning rate (a small positive hyperparameter controlling step size), not the sample count — conflating these is a common beginner mistake. The gradient naturally couples each parameter's update to its own feature's values, because ∂/∂θ_i of (θ·x) is exactly x_i. And yes: if predictions are systematically too high (positive error) on points where x_i is positive, the gradient step subtracts a positive quantity from θ_i, nudging predictions down for those points on the next iteration — this is literally the mechanism by which gradient descent 'corrects' its mistakes.</p>"
+},
+
+{ topic:"linreg", q:"Which statements correctly describe what it means for regression parameters (m, c) to define a point on the 'error surface' J(m, c), and why minimizing this surface matters?",
+  options:[
+    {t:"J(m, c) can be visualized as a 3D surface (or contour plot) over the (m, c) plane, with height representing total squared error", c:true},
+    {t:"For plain least-squares linear regression, this error surface is convex (bowl-shaped), so there's a single global minimum, not multiple separate local minima", c:true},
+    {t:"The goal of training is to find the (m, c) coordinates at the lowest point of this surface", c:true},
+    {t:"For an arbitrary non-convex objective (e.g. from a deep neural network), the same 'single global minimum' guarantee always holds too", c:false}
+  ],
+  exp:"<p>Visualizing training as 'finding the bottom of a bowl in parameter space' is the standard mental model for gradient-based optimization, and for ordinary least-squares linear regression it's a mathematically exact bowl (a convex quadratic), which is why gradient descent (or the closed-form normal equations) reliably finds the global optimum. This convexity guarantee is special to linear regression (and a handful of other convex objectives like logistic regression, SVMs) — it does NOT extend to deep neural networks, whose loss surfaces are famously non-convex, riddled with local minima and saddle points, which is exactly why NN optimization needs momentum, adaptive learning rates, and careful initialization in ways plain linear regression never does.</p>"
+},
+
+{ topic:"linreg", q:"A least-squares linear regression is fit on a dataset that includes one extreme outlier point far away from the rest. Which statements correctly describe the consequence?",
+  options:[
+    {t:"Because the loss squares each error, the outlier's contribution to the total loss is disproportionately large compared to a typical point", c:true},
+    {t:"The fitted line will tend to be pulled toward the outlier more than if a less outlier-sensitive loss (like mean absolute error) had been used", c:true},
+    {t:"Ordinary least-squares regression is known to be sensitive to outliers for exactly this reason", c:true},
+    {t:"Squaring the error makes the model completely immune to the effect of any outliers", c:false}
+  ],
+  exp:"<p>This is a very standard interview follow-up once someone explains squared error: because error is squared, a point 10x further from the line than a 'typical' point contributes roughly 100x more to the total loss, so the optimizer will happily sacrifice fit quality on many normal points to reduce that one point's huge squared contribution — this is precisely why outlier removal/robust scaling matters before OLS regression, and why robust alternatives (Huber loss, MAE-based regression, RANSAC) exist specifically to reduce this sensitivity.</p>"
+},
+
+{ topic:"linreg", q:"Which statements correctly describe when you would choose multiple linear regression over simple linear regression in practice?",
+  options:[
+    {t:"When you believe more than one measured factor genuinely influences the target (e.g. house price depends on square footage AND location AND age)", c:true},
+    {t:"When a simple linear regression using only one feature shows systematic patterns in its residuals (errors), suggesting a missing explanatory variable", c:true},
+    {t:"Multiple linear regression is only valid if all the features are perfectly uncorrelated with each other", c:false},
+    {t:"Adding more relevant features to a multiple regression model can reduce bias, though it can also increase variance if features are weak/noisy or the sample size is small relative to the number of features", c:true}
+  ],
+  exp:"<p>The decision to add a feature should be driven by domain reasoning and residual diagnostics (are the model's errors correlated with some variable you left out?), not an arbitrary rule. Multicollinearity (correlated features) is a real practical concern for coefficient <i>interpretability and stability</i> — highly correlated features can make individual coefficient estimates unstable/hard to interpret — but it doesn't invalidate the model's predictive ability outright; regularization (ridge regression) is a common fix. And piling on more features without enough data is a classic bias-variance tradeoff: you may reduce bias (capturing real effects) while increasing variance (overfitting to noise in the extra features), especially with a small n relative to p.</p>"
+},
+
+{ topic:"linreg", q:"Suppose a fitted linear regression line has residuals (y_actual − y_predicted) that show a clear curved (U-shaped) pattern when plotted against x, rather than looking like random scatter around zero. Which statements are correct?",
+  options:[
+    {t:"This pattern suggests the true relationship is likely nonlinear, and a straight-line model is underfitting", c:true},
+    {t:"A residual plot is a standard diagnostic tool for checking whether a linear model's assumptions are being violated", c:true},
+    {t:"Adding a polynomial term (e.g. x²) or switching to a nonlinear model could be reasonable next steps", c:true},
+    {t:"A clean, random-looking (no visible pattern) residual scatter around zero is generally a good sign that the model has captured the systematic structure in the data", c:true}
+  ],
+  exp:"<p>Residual analysis is one of the most practical regression diagnostics — patterns in residuals (curvature, funnel shapes indicating changing variance/heteroscedasticity, or trends over time) reveal exactly what a simple R² or MSE number hides: <i>where and how</i> the model is failing. A curved residual pattern is the classic sign of underfitting a nonlinear relationship with a linear model — the fix is either transforming features (adding polynomial terms, log transforms) or moving to a nonlinear model family. Random, structureless residuals around zero are what you want to see and are consistent with the linearity assumption holding.</p>"
+},
+
+{ topic:"linreg", q:"Which statements correctly describe why we don't just find (m, c) by brute-force trying every possible value, and how gradient-based optimization connects to what's covered in the deck?",
+  options:[
+    {t:"The space of possible (m, c) pairs is continuous and infinite, so exhaustive search is impossible", c:true},
+    {t:"Because the squared-error objective is convex/smooth in (m, c), calculus-based methods (setting the gradient to zero, or iterative gradient descent) can efficiently find the minimum", c:true},
+    {t:"Gradient descent is one practical, iterative way to reach the minimum of J(m, c) without brute-force search", c:true},
+    {t:"Only gradient descent can ever be used to fit linear regression — there is no closed-form solution", c:false}
+  ],
+  exp:"<p>Linear regression is one of the rare ML models with an exact closed-form solution (the normal equations, θ = (XᵀX)⁻¹Xᵀy), so gradient descent is a <i>choice</i>, not a necessity, for linear regression specifically — it becomes necessary in practice mainly when XᵀX is too large to invert efficiently (very high-dimensional features) or when using stochastic/mini-batch variants for huge datasets that don't fit in memory. This is worth knowing precisely because the deck teaches gradient descent as the general-purpose tool that <i>does</i> generalize to models (like deep neural nets) that have no closed-form solution at all.</p>"
+},
+
+{ topic:"gd", q:"For the 1-parameter update rule w ← w − η·∂J(w)/∂w, which statements correctly explain why this moves w toward a minimum of J?",
+  options:[
+    {t:"If ∂J/∂w is negative (J decreases as w increases), the update increases w — moving in the direction that further decreases J", c:true},
+    {t:"If ∂J/∂w is positive (J decreases as w decreases), the update decreases w — again moving in the direction that decreases J", c:true},
+    {t:"The minus sign ensures the update always moves 'downhill' on the loss surface, regardless of the gradient's sign", c:true},
+    {t:"The magnitude of the step taken is completely independent of the magnitude of the gradient", c:false}
+  ],
+  exp:"<p>This sign-flipping logic is the entire mechanism of gradient descent in one line: the gradient points in the direction of <i>steepest increase</i>, so subtracting a positive multiple of it moves you toward decrease — downhill — regardless of which side of the minimum you're currently on. The step size is explicitly proportional to the gradient's magnitude (scaled by η), which is exactly why gradient descent naturally takes big steps on steep parts of the loss surface and small steps near a flat minimum — the steps shrink automatically as you approach convergence, since the gradient itself shrinks toward zero there.</p>"
+},
+
+{ topic:"gd", q:"η (the learning rate) is a hyperparameter in gradient descent. Which statements correctly describe the consequences of choosing it poorly?",
+  options:[
+    {t:"If η is too large, updates can overshoot the minimum and the loss can oscillate or even diverge instead of converging", c:true},
+    {t:"If η is too small, convergence can be extremely slow, requiring many more iterations to reach a good solution", c:true},
+    {t:"The best value of η should typically be tuned using validation performance, per the slides' note that η is a hyperparameter", c:true},
+    {t:"η is learned automatically by the same gradient-descent update used for the model's regular parameters", c:false}
+  ],
+  exp:"<p>This is a near-universal interview question because picking a good learning rate is one of the most consequential, failure-prone choices in practical deep learning. A too-large η can cause the loss to bounce around or blow up to NaN/infinity (divergence); a too-small η wastes enormous compute crawling toward the minimum. η is a hyperparameter set before/outside training (via grid search, learning-rate finders, or schedules) — it is not itself optimized by the gradient of J, which is precisely what distinguishes hyperparameters (set by the practitioner) from parameters (learned by the optimizer).</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe Batch Gradient Descent (BGD), as defined by J(m, c) = (1/2)Σ_{n=1}^{N} (mx_n + c − s_n)²  computed over ALL N training points each step?",
+  options:[
+    {t:"Each parameter update requires computing the gradient contribution from every single training example", c:true},
+    {t:"For very large N, each update step becomes computationally expensive and slow", c:true},
+    {t:"BGD gives a stable, exact estimate of the true gradient of the full-dataset objective at every step", c:true},
+    {t:"BGD requires storing/summing gradient contributions from all N samples for every single update — a nontrivial memory/compute cost", c:true},
+    {t:"BGD is data-efficient when the dataset contains many highly similar/redundant examples", c:false}
+  ],
+  exp:"<p>Batch GD is precise (the true full-batch gradient) but expensive and, per the deck's explicit critique, 'not data efficient when data is very similar' — if your dataset has lots of near-duplicate examples, computing the gradient over all of them every step is wasted work, since a much smaller subsample would already estimate the same gradient direction almost as well. This tension (expensive-but-exact vs. cheap-but-noisy) is exactly what motivates the SGD and mini-batch variants covered next.</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe Stochastic Gradient Descent (SGD), where a parameter update is computed from just ONE randomly shuffled training example at a time?",
+  options:[
+    {t:"Each update only requires one gradient computation, making individual steps much cheaper than batch GD", c:true},
+    {t:"The gradient computed from a single example is a noisy estimate of the true full-dataset gradient", c:true},
+    {t:"This noise can cause the loss to fluctuate rather than decrease smoothly, even though it tends to decrease on average over many steps", c:true},
+    {t:"SGD is described in the slides as not being computationally efficient, despite each individual step being cheap", c:true},
+    {t:"SGD requires shuffling the dataset once and using that fixed order for every epoch, with no re-shuffling ever", c:false}
+  ],
+  exp:"<p>The apparent contradiction — 'each step is cheap, yet SGD is called not computationally efficient' — is resolved by hardware utilization: per-example updates can't exploit vectorized/parallel matrix operations as well as batched computation can, so despite doing 'less math' per step in a naive sense, SGD often runs slower in wall-clock time on modern hardware (GPUs) than well-batched alternatives, on top of the noisy, oscillating convergence path. Best practice re-shuffles the dataset every epoch (as the pseudocode in the deck shows: 'randomly shuffle samples' inside the loop) specifically to avoid the optimizer learning a spurious pattern tied to a fixed example order.</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe Mini-batch Gradient Descent, which computes the gradient over a small batch of size u at a time?",
+  options:[
+    {t:"Mini-batch GD is a compromise designed to address the specific weaknesses of both pure batch GD and pure SGD", c:true},
+    {t:"It benefits from vectorized/parallel computation (e.g. on a GPU) more effectively than single-example SGD updates", c:true},
+    {t:"It reduces gradient noise compared to SGD, since averaging over u examples smooths out single-example idiosyncrasies", c:true},
+    {t:"The batch size u is typically chosen as a hyperparameter, often a power of 2 for hardware efficiency", c:true},
+    {t:"Setting u = N (the full training set size) makes mini-batch GD mathematically identical to SGD", c:false}
+  ],
+  exp:"<p>Mini-batch GD is what's actually used in the overwhelming majority of real deep learning training loops (batch sizes like 32, 64, 256, 512) precisely because it hits a practical sweet spot: enough averaging to tame SGD's noisiness, small enough to keep memory bounded and allow frequent updates, and sized to align well with GPU parallel throughput (hence the common power-of-2 convention). Setting u=N recovers <i>batch</i> GD (all data used per step), not SGD (single example per step) — u=1 recovers SGD instead, so the two extremes of the mini-batch spectrum ARE batch GD and SGD respectively.</p>"
+},
+
+{ topic:"gd", q:"Comparing all three variants (Batch, Stochastic, Mini-batch) on the axes of 'gradient accuracy per step' and 'compute cost per step,' which statements are correct?",
+  options:[
+    {t:"Batch GD: highest gradient accuracy per step, highest compute cost per step", c:true},
+    {t:"SGD: lowest gradient accuracy per step (noisiest), lowest compute cost per single-example step", c:true},
+    {t:"Mini-batch GD sits between the two extremes on both axes", c:true},
+    {t:"For a fixed total number of epochs, Batch GD always requires fewer total floating-point operations than Mini-batch GD", c:false}
+  ],
+  exp:"<p>This accuracy-vs-cost tradeoff table is exactly the kind of summary an interviewer wants you to be able to draw from memory. On total FLOPs per epoch, batch GD and mini-batch GD (over enough batches to cover the dataset) actually do roughly the same total amount of arithmetic per epoch — the real difference is in <i>update frequency</i> (mini-batch updates parameters many times per epoch, batch GD only once) and in how well that arithmetic maps onto parallel hardware, not in total compute per epoch.</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe why training data is randomly shuffled before each epoch in SGD/mini-batch GD, per the pseudocode 'randomly shuffle samples in the training dataset' at the start of each loop?",
+  options:[
+    {t:"Without shuffling, if the data happens to be sorted (e.g. by label, or by time), consecutive mini-batches could be highly non-representative of the overall distribution", c:true},
+    {t:"Repeatedly presenting examples in the exact same fixed order every epoch can cause the optimizer to develop cyclic or order-dependent update patterns", c:true},
+    {t:"Shuffling is purely a cosmetic convention with no effect on convergence behavior", c:false},
+    {t:"Re-shuffling at the start of every epoch (not just once at the very beginning) is the version of the algorithm shown in the pseudocode", c:true}
+  ],
+  exp:"<p>This is a subtle-but-real practical bug source: if a dataset is sorted by class label (all class-0 examples first, then all class-1), an unshuffled mini-batch pass would feed the optimizer long runs of a single class, causing the parameters to swing toward fitting whichever class currently dominates the stream — a distorted, oscillating training signal totally different from what a properly mixed sample would produce. That's exactly why the deck's pseudocode places the shuffle step <i>inside</i> the 'loop until convergence,' i.e. every single epoch, not just once before training starts.</p>"
+},
+
+{ topic:"gd", q:"Regarding parameter initialization in gradient descent (the deck notes parameters 'can be all zeros' or 'can be random'), which statements are correct?",
+  options:[
+    {t:"For a convex objective like plain linear regression's least-squares loss, initializing all parameters to zero still reliably converges to the same global minimum", c:true},
+    {t:"For certain neural network architectures, initializing ALL weights to the exact same value (including zero) can cause a symmetry problem where different neurons in a layer learn identical, redundant features", c:true},
+    {t:"Random initialization is a common strategy specifically to break that symmetry in multi-neuron architectures", c:true},
+    {t:"Initialization has zero effect on how many iterations gradient descent needs to converge", c:false}
+  ],
+  exp:"<p>This is a case where the 'right' initialization depends entirely on the model family — for linear/logistic regression (a convex bowl with one global minimum), zero-init works fine because there's nowhere else to converge to. But for a multi-neuron neural network layer, if every neuron starts with identical weights, they receive identical gradients throughout training and stay identical forever — effectively collapsing a layer with, say, 128 neurons down to the representational power of 1 — which is exactly why frameworks default to random initialization schemes (Xavier/Glorot, He initialization) for neural nets specifically. Initialization also affects convergence speed even when it doesn't change the final answer, since starting closer to the minimum means fewer steps are needed.</p>"
+},
+
+{ topic:"gd", q:"You observe that your training loss curve is oscillating wildly and occasionally spiking to very large values instead of steadily decreasing. Which of the following are plausible causes and fixes?",
+  options:[
+    {t:"The learning rate η may be too large, causing overshooting — try reducing it", c:true},
+    {t:"If using pure SGD, the inherent per-example noise may be the (expected) cause — switching to mini-batch GD can smooth this out", c:true},
+    {t:"Unscaled/very large-magnitude features could be producing very large gradients — check feature scaling", c:true},
+    {t:"This pattern definitively proves the chosen model architecture is fundamentally incapable of fitting this data", c:false}
+  ],
+  exp:"<p>This is a realistic training-log debugging scenario, and all three legitimate causes listed are the standard first things an ML engineer checks, roughly in this order: (1) learning rate — the single most common cause of divergence/oscillation, (2) if the optimizer is single-example SGD, some jitter is simply expected and mini-batching helps, (3) unscaled features can produce huge gradient magnitudes in certain directions, effectively acting like an implicitly huge learning rate for that parameter. An oscillating loss says nothing definitive about whether the model <i>family</i> is capable of fitting the data — that question can only be answered once optimization itself is stable.</p>"
+},
+
+{ topic:"gd", q:"For multiple linear regression with p features, the mini-batch gradient-descent parameter update for θ_i is θ_i ← θ_i − η Σ_{n∈batch} (y^(n) − s^(n))·x_i^(n). Which statements are correct?",
+  options:[
+    {t:"Every parameter θ_i is updated using the same shared η and the same batch of examples in a given step", c:true},
+    {t:"Each parameter's update additionally depends on that specific feature's values (x_i) across the batch", c:true},
+    {t:"If a feature x_i is scaled to be 1,000x larger than another feature x_j, θ_i's gradient contribution per example tends to be much larger in magnitude purely due to scale, not necessarily importance", c:true},
+    {t:"This is one more concrete reason feature scaling is recommended before running gradient descent on multi-feature models", c:true}
+  ],
+  exp:"<p>This ties the preprocessing section directly back to gradient descent mechanics: because the per-parameter gradient literally multiplies the error term by that feature's raw value (x_i), an unscaled large-magnitude feature mechanically produces larger gradient steps for its own coefficient — regardless of whether that feature is actually more predictive — which reintroduces the exact 'ill-conditioned, elongated loss surface' problem discussed earlier. This is precisely why the standard preprocessing pipeline order is: clean data → scale features → THEN run gradient descent.</p>"
+},
+
+{ topic:"prob", q:"Which statements correctly describe why real-world processes are often modeled probabilistically even when, at some deeper physical level, they might be deterministic?",
+  options:[
+    {t:"In practice we rarely model every underlying physical variable (e.g. exact air resistance, exact initial coin-flip force), so the unmodeled factors show up as apparent randomness", c:true},
+    {t:"Using abstractions/simplifications in modeling is itself a source of the probabilistic nature we then have to account for", c:true},
+    {t:"At the quantum level, some phenomena are considered fundamentally probabilistic, not merely 'hard to model'", c:true},
+    {t:"This means the real world offers no genuine cases of deterministic behavior at all", c:false}
+  ],
+  exp:"<p>This nuance is worth having ready for a 'why do we need probability in ML at all' question: a coin flip is a good example of 'practically random, but not fundamentally random' — with perfect knowledge of force, angle, air resistance, etc. it's Newtonian-deterministic, but no one actually tracks all that, so we treat the outcome as random. Deterministic behavior absolutely exists too (e.g. dropped objects reliably fall down given the same coarse assumptions) — the point isn't that everything is random, it's that whenever we choose to abstract away detail, probability becomes the right tool for describing what's left.</p>"
+},
+
+{ topic:"prob", q:"For the experiment 'roll a fair six-sided die,' which statements about the sample space are correct?",
+  options:[
+    {t:"The sample space is S = {1, 2, 3, 4, 5, 6}", c:true},
+    {t:"Each individual outcome (e.g. rolling a 4) is called a sample point", c:true},
+    {t:"A sample space can be infinite, e.g. the exact amount of rainfall in a month", c:true},
+    {t:"A sample space must always contain a countable, finite number of outcomes", c:false}
+  ],
+  exp:"<p>Sample space (S) is simply the exhaustive set of everything that could happen in one run of the experiment. Discrete-and-finite (a die), discrete-and-countably-infinite (number of customers arriving before 5pm — unbounded but countable), and continuous-and-uncountable (exact rainfall, a real number) are all valid sample spaces — this distinction matters because it determines whether you'll compute probabilities via simple counting/ratios (finite case) or via integrating a density function (continuous case).</p>"
+},
+
+{ topic:"prob", q:"An event is defined as any subset of the sample space. For rolling a fair die, let event A = 'the outcome is less than 3'. Which statements are correct?",
+  options:[
+    {t:"A = {1, 2}", c:true},
+    {t:"Using the equally-likely-outcomes formula, P(A) = 2/6 = 1/3", c:true},
+    {t:"The 'formula' P(A) = favorable outcomes / total outcomes is only valid when all outcomes in the sample space are equally likely", c:true},
+    {t:"An event can consist of a single outcome, e.g. {4}", c:true},
+    {t:"An event must always contain more than one outcome", c:false}
+  ],
+  exp:"<p>The favorable-over-total formula is a common early trap: it's only mathematically justified under the assumption of equally likely outcomes (a fair die, a fair coin) — apply it to a loaded die or a biased coin and you'll get a wrong answer, since some outcomes are more probable than others and simple counting no longer reflects true probability. Single-outcome events (called 'elementary events') are perfectly valid — {4} is just as legitimate a subset of S as {1,2} is.</p>"
+},
+
+{ topic:"prob", q:"Which statements correctly describe the frequentist definition of probability, P(A) = lim_{n→∞} n(A)/n, where n(A) is the number of times event A occurred in n trials?",
+  options:[
+    {t:"It defines probability as the long-run relative frequency of an event across repeated independent trials", c:true},
+    {t:"It doesn't require assuming outcomes are equally likely, unlike the classical (favorable/total) definition", c:true},
+    {t:"In practice, we can only ever run a finite number of trials, so any observed relative frequency is an estimate of, not exactly equal to, the true probability", c:true},
+    {t:"This definition applies just as naturally to a biased coin as to a fair one", c:true}
+  ],
+  exp:"<p>This is exactly why the frequentist framing is more general than the classical 'equally likely outcomes' formula: it works for ANY probability, fair or biased, discrete or (via careful limiting arguments) continuous, purely by observing how often something happens over many repetitions. In practice, of course, you can't literally run infinitely many trials — 10,000 coin flips give you a very good <i>estimate</i> of P(heads), with a margin of error that shrinks as n grows (this is the statistical foundation behind confidence intervals and, more broadly, why 'more data' generally gives better probability/parameter estimates in ML).</p>"
+},
+
+{ topic:"prob", q:"Which of the following are the correctly stated axioms/properties of a probability measure P(·), per the Kolmogorov axioms referenced in the slides?",
+  options:[
+    {t:"0 ≤ P(A) ≤ 1 for any event A", c:true},
+    {t:"P(S) = 1, where S is the entire sample space", c:true},
+    {t:"P(∅) = 0 for the null (impossible) event", c:true},
+    {t:"For disjoint events A1, A2, ..., An, P(A1 ∪ A2 ∪ ... ∪ An) = P(A1) + P(A2) + ... + P(An)", c:true},
+    {t:"P(A) can be negative if A is defined as the complement of a common event", c:false}
+  ],
+  exp:"<p>These are the Kolmogorov axioms — the formal foundation that everything else in probability theory (including every ML model that outputs a probability, like softmax classifiers) is built on top of. Any valid probability, however it's computed (classical counting, frequentist estimation, a neural network's softmax output, a Bayesian posterior), must satisfy all of these simultaneously — non-negativity, total probability 1, and additivity over disjoint events. A negative probability is never valid under any interpretation; if a computed value comes out negative, that's a bug, not a valid edge case.</p>"
+},
+
+{ topic:"prob", q:"Two events A and B are called 'disjoint' or 'mutually exclusive.' Which statements are correct?",
+  options:[
+    {t:"Disjoint means A and B cannot both occur on the same trial of the experiment", c:true},
+    {t:"For a single die roll, the events 'roll is even' and 'roll is odd' are disjoint", c:true},
+    {t:"For a single die roll, the events 'roll is even' and 'roll is greater than 3' are NOT disjoint, since e.g. rolling a 4 satisfies both", c:true},
+    {t:"For disjoint events, P(A ∪ B) = P(A) + P(B), with no need to subtract an overlap term", c:true},
+    {t:"Any two distinct events are automatically disjoint", c:false}
+  ],
+  exp:"<p>Disjointness is about whether the underlying <i>sets</i> overlap, not just whether the event descriptions sound different — 'even' ∩ 'greater than 3' = {4, 6}, a nonempty overlap, so those two events are NOT disjoint even though they're clearly distinct events. This distinction is exactly what determines whether you can use the simple additive rule P(A∪B)=P(A)+P(B) or need the general addition rule with the overlap subtracted — getting this wrong is one of the most common introductory-probability mistakes.</p>"
+},
+
+{ topic:"prob", q:"The general addition rule states P(A ∪ B) = P(A) + P(B) − P(A ∩ B). Which statements correctly explain why the subtraction term is needed?",
+  options:[
+    {t:"When A and B overlap, simply adding P(A) + P(B) double-counts the probability mass in the overlapping region A ∩ B", c:true},
+    {t:"Subtracting P(A ∩ B) corrects for that double-counting", c:true},
+    {t:"When A and B are disjoint, P(A ∩ B) = 0, so the general formula reduces to the simple additive rule", c:true},
+    {t:"This formula only applies to exactly two events and has no analogue for three or more overlapping events", c:false}
+  ],
+  exp:"<p>This is the classic Venn-diagram intuition: the overlapping region gets counted once inside P(A) and once again inside P(B), so subtracting P(A∩B) removes exactly the duplicated count, leaving each part of the union counted exactly once. The disjoint additive rule is simply the special case where the overlap term is zero — they're not two separate formulas, one is a special case of the other. The idea generalizes to three or more sets via inclusion-exclusion (add singles, subtract pairwise overlaps, add back triple overlaps, and so on) — it's a foundational identity used, for instance, in exact computation of union probabilities in reliability/risk models.</p>"
+},
+
+{ topic:"prob", q:"Which statements correctly describe the complement rule, P(A) = 1 − P(Aᶜ), and a scenario where it's the easier way to compute a probability?",
+  options:[
+    {t:"Since S = A ∪ Aᶜ and A, Aᶜ are disjoint, P(S) = P(A) + P(Aᶜ) = 1, which rearranges to P(A) = 1 − P(Aᶜ)", c:true},
+    {t:"For 'at least one of 3 fair coin flips is heads,' it's easier to compute 1 − P(all 3 are tails) than to directly enumerate every way to get at least one head", c:true},
+    {t:"The complement rule can only be applied when A and Aᶜ each contain exactly one outcome", c:false},
+    {t:"Computing P(a randomly chosen model prediction is wrong) as 1 − accuracy is an application of the complement rule in an ML evaluation context", c:true}
+  ],
+  exp:"<p>'At least one' / 'at least N' probability questions are the classic use-case for the complement trick — directly enumerating every combination that satisfies 'at least one head' across 3 flips means summing several cases (exactly 1, exactly 2, exactly 3 heads), while the complement ('all tails') is a single, trivially computable case, 1/8. This exact trick shows up in ML practice too — e.g. computing error rate as 1 − accuracy, or 'probability the ensemble's majority vote is wrong' via complementary counting over individual model errors.</p>"
+},
+
+{ topic:"prob", q:"Which statements correctly describe a discrete vs. continuous random variable, using the examples given (weather condition vs. temperature)?",
+  options:[
+    {t:"'Weather condition' taking values in {sunny, rainy, cloudy} is a discrete random variable", c:true},
+    {t:"'Temperature at Jodhpur' taking any real value in a range like [6.7°, 46.2°] is a continuous random variable", c:true},
+    {t:"For a discrete random variable X with possible values x1,...,xk and P(X=xj)=Pj, the probabilities must sum to 1: Σ Pj = 1", c:true},
+    {t:"A continuous random variable's probability distribution can be fully described by a finite list of point probabilities P(X=v) for every possible v", c:false}
+  ],
+  exp:"<p>The discrete-vs-continuous distinction determines the entire mathematical machinery you use downstream: discrete variables get probability mass functions (a table/list of P(X=x) values summing to 1), while continuous variables get probability density functions f(v), where P(X=v) for any single exact value v is actually 0 (you can only assign positive probability to an <i>interval</i>, via P(a<X≤b) = ∫ₐᵇ f(v)dv) — this is exactly why you can never build a 'lookup table' of point probabilities for a continuous variable the way you can for a discrete one.</p>"
+},
+
+{ topic:"prob", q:"For a continuous random variable X with probability density function f(v), which statements are correct?",
+  options:[
+    {t:"f(v) ≥ 0 for every value of v", c:true},
+    {t:"The total area under f(v) across its entire domain equals 1: ∫_{-∞}^{∞} f(v) dv = 1", c:true},
+    {t:"P(a < X ≤ b) is computed as the area under f(v) between a and b, i.e. ∫ₐᵇ f(v) dv", c:true},
+    {t:"f(v) itself must always be less than or equal to 1 at every point v", c:false}
+  ],
+  exp:"<p>A subtle but important point often mis-stated: unlike a discrete probability (which IS bounded by 1), a probability <i>density</i> f(v) is not itself a probability and can exceed 1 at a point — e.g. a uniform distribution on the narrow interval [0, 0.1] has constant density f(v)=10 there, because it's the <i>area</i> under the curve (density × interval width) that must integrate to 1, not the height of the curve at any single point. This exact confusion (assuming densities are capped at 1) is a common source of bugs when people implement custom likelihood functions by hand.</p>"
+},
+
+{ topic:"prob", q:"Why is the material on sample spaces, events, and probability axioms directly relevant to building ML models — e.g. Bayes decision theory or a softmax classifier's output?",
+  options:[
+    {t:"A softmax classifier's output layer is required to produce values that are non-negative and sum to 1 across classes — exactly the axioms of a valid probability distribution over a discrete random variable (the predicted class)", c:true},
+    {t:"Bayesian approaches to ML explicitly compute and update probabilities over hypotheses/parameters using these same axioms", c:true},
+    {t:"Evaluation metrics like accuracy can themselves be understood as an empirical, frequentist estimate of a probability (P(correct prediction)) computed from a finite sample (the test set)", c:true},
+    {t:"None of these later ML topics actually depend on the axioms covered here — probability theory and ML practice are unrelated", c:false}
+  ],
+  exp:"<p>This is the 'why does this matter' payoff of the probability-foundations material: the requirement that softmax outputs sum to 1 and stay non-negative isn't an arbitrary design choice, it's the classifier being engineered to satisfy Kolmogorov's axioms so its outputs can be legitimately interpreted as P(class | input). Likewise, every reported test accuracy is really a frequentist point-estimate of a true underlying probability, complete with the same finite-sample uncertainty caveats — which is exactly why practitioners report confidence intervals or run multiple evaluation seeds rather than trusting a single accuracy number at face value.</p>"
+},
+
+{ topic:"inductive", q:"An interviewer asks: 'If I give you a training set and no other information, can you tell me the single best model to use?' Which responses correctly apply the ideas of inductive bias and hypothesis space?",
+  options:[
+    {t:"No — without some assumption about the structure of the true function (an inductive bias), the problem of picking among all hypotheses consistent with the data is ill-posed", c:true},
+    {t:"A reasonable answer involves asking about domain knowledge, expected relationship shape, data volume, and noise level before recommending a hypothesis space", c:true},
+    {t:"Yes — there is a single mathematically optimal model for any dataset, independent of domain and assumptions", c:false},
+    {t:"This question is really testing whether the candidate understands that 'best model' is meaningless without stating what class of hypotheses and what inductive bias is being assumed", c:true}
+  ],
+  exp:"<p>This is a great meta-question because it directly tests whether the No-Free-Lunch / inductive-bias lesson actually sank in versus being memorized as trivia. The 'correct' senior-level answer isn't a specific algorithm name — it's recognizing that the question itself is underspecified, and demonstrating the diagnostic questions (what's the target type, how much data, what's known about the domain's structure, what's the cost of different error types) that a working ML scientist would ask before committing to a hypothesis space at all.</p>"
+},
+
+{ topic:"vc", q:"Which of the following statements correctly rank these hypothesis classes by VC-dimension in 2D, from lowest to highest: (i) a fixed threshold on one feature (a single axis-aligned half-line), (ii) a general straight line, (iii) axis-aligned rectangles?",
+  options:[
+    {t:"A single 1D threshold (e.g. 'x1 > k') has VC-dimension 1 — it can shatter 1 point but not 2 (for 2 points, the labeling 'near one positive, far one negative, but reversed' can't always be realized by a single threshold)", c:true},
+    {t:"General straight lines in 2D have VC-dimension 3, which is higher than the 1D-threshold class", c:true},
+    {t:"Axis-aligned rectangles in 2D have VC-dimension 4, higher than general straight lines", c:true},
+    {t:"More free parameters in a hypothesis class always implies strictly higher VC-dimension, with no exceptions in any dimensionality", c:false}
+  ],
+  exp:"<p>This ranking exercise builds real intuition for how added geometric flexibility (more boundary parameters) tends to raise VC-dimension: 1 parameter (threshold) → VC-dim 1; 2 parameters (slope+intercept, i.e. a line) → VC-dim 3; 4 parameters (rectangle's 4 edges) → VC-dim 4. But this correlation is a rule of thumb, not a theorem — there exist pathological hypothesis classes with a single real-valued parameter yet infinite VC-dimension (a classic counterexample uses a parameter that encodes arbitrary bit patterns), which is exactly why 'count the parameters' is an unreliable shortcut for VC-dimension in general, even though it works for the well-behaved geometric families covered here.</p>"
+},
+
+{ topic:"features", q:"A recruiter dataset has a 'years of experience' feature ranging from 0–40 and a 'has a master's degree' binary feature (0/1). Which statements about combining these into one feature vector are correct?",
+  options:[
+    {t:"Without scaling, 'years of experience' will dominate any distance-based computation simply because its numeric range is far larger than the binary feature's", c:true},
+    {t:"For a tree-based model, this scale mismatch is largely irrelevant, since trees split on thresholds per feature independently of other features' scales", c:true},
+    {t:"For k-NN or k-means specifically, this scale mismatch would need to be addressed via normalization/standardization before computing distances", c:true},
+    {t:"Binary (0/1) features never need any preprocessing before being combined with continuous features", c:false}
+  ],
+  exp:"<p>This is a very concrete, hiring-relevant version of the hemoglobin/creatinine scaling problem: in raw Euclidean distance, a 5-year experience gap contributes 25 to the squared distance while the entire binary degree feature can contribute at most 1 — meaning the degree feature is almost invisible to a k-NN/k-means model unless features are scaled first. Tree splits ('experience > 7.5?', 'has_masters == 1?') are evaluated per-feature independently of other features' units, so trees genuinely don't need this kind of scaling — this is one of the most commonly asked 'why don't we need to scale features for random forest/XGBoost' interview questions.</p>"
+},
+
+{ topic:"biasvariance", q:"An ensemble method (like a random forest) averages predictions from many individually high-variance, low-bias decision trees. Which statements correctly explain why this tends to reduce overall variance without proportionally increasing bias?",
+  options:[
+    {t:"Averaging many noisy but roughly-unbiased individual predictors tends to cancel out their individual variance, provided their errors aren't perfectly correlated", c:true},
+    {t:"Each individual deep tree in the ensemble can still be a high-variance, low-bias learner on its own", c:true},
+    {t:"Randomizing what each tree sees (bootstrap-sampled rows, random feature subsets) helps decorrelate the trees' errors, which is what makes the variance-reduction benefit of averaging effective", c:true},
+    {t:"Averaging predictions from multiple models can never help if the individual models are highly correlated with each other", c:true}
+  ],
+  exp:"<p>This is the statistical mechanism behind why bagging/random forests work, and it's a very natural follow-up once someone understands bias/variance: averaging N independent, unbiased estimators reduces variance by roughly a factor of N (variance of the mean of iid variables), while leaving the average bias essentially unchanged — but that benefit specifically requires the individual errors to be at least partially <i>uncorrelated</i>. That's exactly why random forests inject randomness (bagging rows via bootstrap sampling, and randomly restricting the feature subset considered at each split) rather than just training the same tree algorithm N times on the same full dataset, which would produce nearly identical, highly correlated trees and little variance-reduction benefit.</p>"
+},
+
+{ topic:"biasvariance", q:"Which statements correctly describe the role of a held-out validation set (distinct from both the training set and the final test set) in the context of bias-variance tradeoff management?",
+  options:[
+    {t:"A validation set is used to tune hyperparameters (e.g. model complexity, regularization strength) without contaminating the final test-set evaluation", c:true},
+    {t:"Selecting a model purely based on which one performs best on the test set, then reporting that same test-set number as the final result, tends to give an overly optimistic estimate of real-world performance", c:true},
+    {t:"K-fold cross-validation is one common way to get a more reliable estimate of validation performance when data is limited", c:true},
+    {t:"Using the training set itself to choose hyperparameters like model complexity would systematically favor the most complex/overfit models", c:true}
+  ],
+  exp:"<p>This three-way split (train/validation/test) exists precisely because of the overfitting dynamics discussed earlier: if you pick hyperparameters by minimizing training error, you'll always be pulled toward maximal complexity (since training error is monotonically non-increasing in complexity); if you instead pick them by peeking at test-set performance, you've effectively 'fit' your hyperparameters to the test set too, inflating your reported number relative to true generalization. K-fold cross-validation is the standard fix for small datasets, where a single validation split would itself have high variance as an estimate.</p>"
+},
+
+{ topic:"biasvariance", q:"Two data scientists debate: one says 'always use the most complex model available and rely on regularization to control overfitting,' the other says 'start simple and only add complexity when justified by validation performance.' Which statements are defensible, senior-level takes on this debate?",
+  options:[
+    {t:"Starting simple gives an interpretable baseline and a fast way to sanity-check the data pipeline and labels before investing in a complex model", c:true},
+    {t:"Modern large models with strong regularization/large data can indeed outperform simpler models, so the 'always complex + regularize' approach is not inherently wrong, just riskier and costlier in compute/time", c:true},
+    {t:"The right choice legitimately depends on constraints like available data volume, latency/interpretability requirements, and compute budget, not on a single universally correct rule", c:true},
+    {t:"There is a single objectively correct answer to this debate that applies to every ML problem", c:false}
+  ],
+  exp:"<p>This kind of open-ended debate question is specifically designed to see whether a candidate can reason about tradeoffs rather than reciting a rule. Both instincts have real merit and real failure modes: starting simple is faster to iterate on and easier to debug (and a simple baseline is invaluable for catching pipeline bugs before they're hidden by a complex model's flexibility), while 'complex + well-regularized' is exactly the recipe behind most modern deep learning successes when data and compute are abundant. A strong answer names the actual constraints (data size, latency SLA, interpretability requirement, compute budget) that would tip the decision either way for a specific project, rather than defending one side dogmatically.</p>"
+},
+
+{ topic:"prep", q:"You're given a dataset where the 'income' feature is right-skewed (most values are modest, with a long tail of very high incomes). Which statements about preprocessing choices are correct?",
+  options:[
+    {t:"A log transform can compress the long right tail, often making the distribution closer to symmetric/normal before further scaling", c:true},
+    {t:"Min-max scaling alone (without addressing the skew) would still leave most of the data compressed into a small sub-range near 0, since the few extreme incomes stretch the max", c:true},
+    {t:"Z-score standardization corrects skewness by definition, guaranteeing a symmetric distribution afterward", c:false},
+    {t:"Whether to log-transform is a decision that should be informed by understanding the feature's real-world distribution, not applied blindly to every numeric column", c:true}
+  ],
+  exp:"<p>This is a common real-world nuance beyond the raw standardization/min-max formulas: z-score standardization only recenters and rescales (shifts mean to 0, std to 1) — it's a purely linear transform, so a right-skewed distribution stays exactly as skewed after standardization, just shifted/rescaled. A log transform, by contrast, is nonlinear and specifically compresses large values proportionally more than small ones, which is why it's the standard first move for monetary amounts, population counts, and other naturally multiplicative/right-skewed quantities before any further linear scaling is applied.</p>"
+},
+
+{ topic:"prep", q:"Which statements correctly describe the risk of 'data leakage' during preprocessing, and how it connects to the train/validation/test split discipline?",
+  options:[
+    {t:"Computing normalization statistics (mean, std, min, max) using the full dataset (including validation/test rows) before splitting is a form of data leakage", c:true},
+    {t:"Data leakage during preprocessing can make offline validation/test metrics look better than what the model will actually achieve on truly new production data", c:true},
+    {t:"The correct order is: split the data first, then fit any preprocessing statistics only on the training partition, then apply those same statistics to transform validation/test partitions", c:true},
+    {t:"Data leakage is impossible once you've started using a proper train/test split, regardless of when preprocessing statistics were computed", c:false}
+  ],
+  exp:"<p>This is one of the most practically important and most commonly violated rules in real pipelines — computing μ/σ or min/max (or target encodings, or imputation values) on the combined dataset before splitting lets information about the validation/test set's distribution 'leak' into the training-time transform, giving an overly optimistic offline metric that won't hold up once the model meets genuinely unseen production data. This is exactly why libraries like scikit-learn enforce a fit-on-train / transform-on-everything-else API pattern (fit_transform on train, transform only on val/test) — the API design itself is a defense against this specific, easy-to-make mistake.</p>"
+},
+
+{ topic:"linreg", q:"Which statements correctly describe multicollinearity in multiple linear regression, where two or more features are highly correlated with each other?",
+  options:[
+    {t:"Multicollinearity can make individual coefficient estimates unstable and hard to interpret, even if the model's overall predictions remain reasonably accurate", c:true},
+    {t:"A small change in the training data can cause a disproportionately large swing in a correlated feature's estimated coefficient under multicollinearity", c:true},
+    {t:"Ridge regression (L2-regularized linear regression) is a common technique used specifically to stabilize coefficients under multicollinearity", c:true},
+    {t:"Multicollinearity always makes a linear regression model's predictions on new data worse", c:false}
+  ],
+  exp:"<p>This distinction — prediction accuracy vs. coefficient interpretability — is one that trips up a lot of people who only think of regression as a prediction tool: even with severe multicollinearity, a linear model can still predict well on new data drawn from the same distribution (since the <i>combined</i> effect of the correlated features is well-estimated even if it's ambiguous how to split credit between them individually), but trying to interpret 'feature A's coefficient means X' becomes unreliable, because the optimizer could have assigned that same combined effect many different ways across the correlated features. Ridge regression's L2 penalty specifically discourages any one coefficient from growing arbitrarily large to compensate for a correlated partner, which stabilizes the individual estimates.</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe the relationship between the number of epochs, the learning rate schedule, and convergence in gradient-descent training, as commonly seen in practice?",
+  options:[
+    {t:"An epoch refers to one complete pass through the entire training dataset", c:true},
+    {t:"A learning-rate schedule that decays η over time can help take large steps early (fast progress) and small steps later (fine convergence near the minimum)", c:true},
+    {t:"Training for more epochs always strictly improves validation performance, with no risk of eventually overfitting", c:false},
+    {t:"Monitoring the validation loss across epochs (not just training loss) is the standard way to decide when to stop training", c:true}
+  ],
+  exp:"<p>This links the mini-batch pseudocode's inner/outer loop structure to real training practice: one pass through all mini-batches = one epoch, and it's entirely standard to run many epochs. Learning-rate schedules (step decay, cosine annealing, warmup) exist precisely to get the best of both worlds — a large initial η for fast early progress across the broad part of the loss landscape, shrinking toward a small η for precise convergence near the minimum. And more epochs is explicitly NOT always better — past some point, additional epochs let the model keep fitting the training set's noise (exactly the overfitting story from the bias-variance section), which is why validation-loss monitoring (and early stopping) rather than a fixed epoch count is the standard practice.</p>"
+},
+
+{ topic:"gd", q:"Comparing plain (vanilla) gradient descent to momentum-based or adaptive-learning-rate variants (e.g. as used in modern deep learning), which statements are correct, based on the concepts introduced in this deck?",
+  options:[
+    {t:"Plain gradient descent, as covered here, always uses a single fixed learning rate η applied uniformly to every parameter at every step", c:true},
+    {t:"The core update rule 'parameter ← parameter − η·gradient' is the foundational building block that momentum and adaptive methods (like Adam) extend, rather than replace outright", c:true},
+    {t:"All gradient-based optimizers, however sophisticated, still fundamentally rely on computing ∂J/∂parameter at each step", c:true},
+    {t:"Once you understand plain batch/stochastic/mini-batch gradient descent, you already have the conceptual foundation to make sense of why more advanced optimizers were invented", c:true}
+  ],
+  exp:"<p>This question deliberately looks forward from the deck's material to connect it with what a candidate would encounter next in a deep-learning-focused role: every modern optimizer (Momentum, RMSProp, Adam, AdamW) is still, at its core, computing gradients of a loss and using them to update parameters — what they add on top are smarter ways to set the effective step size per parameter and per iteration (e.g. accumulating a velocity term to smooth out noisy gradients, or adapting η per-parameter based on historical gradient magnitudes). Understanding plain batch/SGD/mini-batch deeply — including exactly why learning rate and feature scale matter — is precisely the prerequisite that makes those more advanced optimizers' design choices make sense rather than feel like arbitrary tricks.</p>"
+},
+
+{ topic:"prep", q:"A categorical feature 'city' has 500 distinct values, most appearing only once or twice in the training set. Which statements about preprocessing this feature are correct?",
+  options:[
+    {t:"Naive one-hot encoding would create 500 extremely sparse columns, most of which carry almost no statistical signal individually", c:true},
+    {t:"Grouping rare categories into an 'other' bucket, or using target/frequency encoding, are common ways to handle high-cardinality categoricals", c:true},
+    {t:"This kind of high-cardinality categorical column has no relationship at all to the earlier discussion of data quality and feature scale", c:false},
+    {t:"Tree-based models can often handle high-cardinality categoricals somewhat more gracefully than distance-based models, but extreme cardinality can still hurt split quality and training time", c:true}
+  ],
+  exp:"<p>High-cardinality categoricals are a very common real-world extension of the 'prepare your features properly' theme — this is a frequent live-coding/system-design topic at companies with lots of categorical business data (cities, product SKUs, merchant IDs). One-hot encoding 500 rare categories mostly produces near-constant, uninformative columns (curse-of-dimensionality-adjacent), which is why frequency encoding, target encoding (with proper cross-validation to avoid leakage), embedding layers (in deep models), or simply bucketing rare values into 'other' are the standard fixes.</p>"
+},
+
+{ topic:"gd", q:"Which statements correctly describe what happens to the least-squares linear regression objective's gradient as the model's parameters approach the true minimum?",
+  options:[
+    {t:"The gradient ∂J/∂w approaches zero as w approaches the minimizing value", c:true},
+    {t:"Near the minimum, gradient descent's update steps naturally shrink in size, even with a constant learning rate η, because the step size is proportional to the gradient's magnitude", c:true},
+    {t:"At the exact minimum of a convex objective like this one, the gradient is exactly zero", c:true},
+    {t:"A nonzero gradient at a point always means that point cannot be a minimum of a convex function", c:true}
+  ],
+  exp:"<p>This is the calculus fact underlying the entire gradient-descent story: for a smooth convex function, the gradient vanishing is both necessary and sufficient to identify the (unique, global) minimum, which is exactly why 'set the gradient to zero and solve' is the closed-form approach for linear regression, and why gradient descent's steps naturally taper off as training converges rather than needing an explicit stopping rule based on step count alone — watching the gradient norm shrink toward zero is itself a legitimate convergence diagnostic used in real training loops.</p>"
+},
+
+{ topic:"prob", q:"Which of the following are correct examples of applying the addition rule and complement rule together in a practical ML-evaluation context?",
+  options:[
+    {t:"P(a random test example is misclassified by at least one of two independently-erring models) can be computed via 1 − P(neither model errs), using the complement rule", c:true},
+    {t:"P(a prediction is either a false positive or a false negative) = P(false positive) + P(false negative), since these two error types are disjoint (a single prediction can't be both at once)", c:true},
+    {t:"P(A ∪ B) can always be safely computed as P(A) + P(B) regardless of whether A and B overlap", c:false},
+    {t:"These rules give exact answers only when the relevant events' probabilities are already known or reliably estimated from data — they don't manufacture correct probabilities out of bad estimates", c:true}
+  ],
+  exp:"<p>This closes the probability section by tying the addition/complement rules directly back to metrics an ML engineer computes daily: false-positive and false-negative are mutually exclusive outcomes for a single prediction (a given example is either one or the other, never both), so their probabilities add directly, while 'at least one of several independent things happens' is the textbook complement-rule shortcut. The caveat about needing good underlying probability estimates is a genuinely important, often-skipped point: these identities are mathematically exact given true probabilities, but in practice P(false positive) etc. are themselves estimated from a finite validation set and inherit that estimate's own uncertainty.</p>"
+}];
+
+QUESTIONS.forEach((q, i) => { q.id = 'q' + (i + 1); q._idx = i + 1; });
+const groups: Record<string, typeof QUESTIONS> = {};
+for (const q of QUESTIONS) {
+  (groups[q.topic] = groups[q.topic] || []).push(q);
+}
+const sections = TOPIC_ORDER
+  .map((key, i) => ({ key, index: i + 1, meta: (TOPIC_META as any)[key], qs: groups[key] || [] }))
+  .filter((s) => s.qs.length > 0);
+const totalQuestions = QUESTIONS.length;
+---
+
+<BaseLayout title="ML Concepts Quiz — Part 1" description="101 multi-select questions covering ML foundations through gradient descent and probability, with worked explanations for every option.">
+  <div class="container quiz-page">
+    <a class="backlink" href="/machine-learning/ml-concepts-revision-part-1/">&larr; Back to Part 1: Quickly revise ML concepts</a>
+
+    <div class="qhero">
+      <p class="eyebrow">Machine Learning &middot; Self-test</p>
+      <h1>ML Concepts Quiz &mdash; Part 1</h1>
+      <p class="tagline">{totalQuestions} multi-select questions covering everything in Part 1, from what ML even is through gradient descent and probability. Select any options you think are true, then check &mdash; each question reveals its own worked explanation.</p>
+    </div>
+
+    <div class="scoreboard">
+      <div class="score-stat"><span class="n" id="stat-answered">0/{totalQuestions}</span><span class="l">Answered</span></div>
+      <div class="score-stat"><span class="n" id="stat-correct">0</span><span class="l">Correct</span></div>
+      <div class="score-bar-track"><div class="score-bar-fill" id="score-bar"></div></div>
+      <button class="reset-btn" id="reset-btn" type="button">Reset progress</button>
+    </div>
+
+    <nav class="topicnav">
+      {sections.map((s) => (
+        <a href={`#sec-${s.key}`}>{s.index}. {s.meta.title}</a>
+      ))}
+    </nav>
+
+    <main>
+      {sections.map((s) => (
+        <section class="topic-section">
+          <div class="section-head" id={`sec-${s.key}`}>
+            <p class="num">Section {s.index} &middot; {s.qs.length} questions</p>
+            <h2>{s.meta.title}</h2>
+            <p class="blurb">{s.meta.blurb}</p>
+          </div>
+
+          <div class="qlist">
+            {s.qs.map((q) => (
+              <div class="qcard" id={q.id}>
+                <div class="qhead">
+                  <span class="qnum">Q{q._idx}</span>
+                  <span class="qtag">{s.meta.title}</span>
+                </div>
+                <p class="qtext">{q.q}</p>
+                <p class="qhint">Select all statements you believe are true, then check your answer.</p>
+
+                <ul class="options">
+                  {q.options.map((opt: any, oi: number) => (
+                    <li class="opt">
+                      <input type="checkbox" id={`${q.id}-o${oi}`} data-correct={opt.c ? "1" : "0"} />
+                      <label for={`${q.id}-o${oi}`} class="otext">{opt.t}</label>
+                      <span class="mark"></span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div class="qfoot">
+                  <button type="button" class="check-btn">Check answer</button>
+                  <span class="verdict"></span>
+                </div>
+
+                <div class="explain">
+                  <span class="lbl">Explanation</span>
+                  <div class="explain-body" set:html={q.exp}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </main>
+
+    <footer class="endnote">
+      That's Part 1 &mdash; foundations, hypothesis spaces, bias/variance, VC-dimension, preprocessing, linear regression, gradient descent, and core probability. Part 2 will pick up Bayes decision theory and parameter estimation.
+    </footer>
+  </div>
+</BaseLayout>
+
+<style>
+  .quiz-page {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-6);
+    --good: #1a7f4e;
+    --good-soft: #e4f5ec;
+    --good-line: #a9dcc2;
+    --bad: #b8382f;
+    --bad-soft: #fbeae8;
+    --bad-line: #eab5af;
+    --miss: #9a6b06;
+    --miss-soft: #fbf1dc;
+    --miss-line: #e9cd8e;
+    --sunken: #f1efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    .quiz-page {
+      --good: #52d98f;
+      --good-soft: #113523;
+      --good-line: #205c3d;
+      --bad: #ff7a70;
+      --bad-soft: #3a1917;
+      --bad-line: #6b302b;
+      --miss: #e8b84b;
+      --miss-soft: #362c10;
+      --miss-line: #6b551f;
+      --sunken: #17171c;
+    }
+  }
+
+  .backlink {
+    display: inline-block;
+    font-size: var(--fs-sm);
+    color: var(--color-ink-muted);
+    text-decoration: none;
+    margin-bottom: var(--space-4);
+  }
+  .backlink:hover { color: var(--color-accent); }
+
+  .qhero { margin-bottom: var(--space-4); }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin: 0 0 var(--space-2);
+  }
+  .qhero h1 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--fs-2xl);
+  }
+  .tagline {
+    color: var(--color-ink-muted);
+    font-size: var(--fs-base);
+    max-width: 68ch;
+    margin: 0;
+  }
+
+  .scoreboard {
+    position: sticky;
+    top: var(--space-2);
+    z-index: 5;
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-2) var(--space-3);
+    margin: var(--space-4) 0;
+    box-shadow: 0 2px 10px rgba(20,15,50,0.06);
+    flex-wrap: wrap;
+  }
+  .score-stat { display: flex; flex-direction: column; gap: 1px; min-width: 60px; }
+  .score-stat .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: var(--fs-lg); }
+  .score-stat .l { font-size: 11px; color: var(--color-ink-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .score-bar-track { flex: 1 1 140px; height: 6px; border-radius: 4px; background: var(--sunken); overflow: hidden; min-width: 90px; }
+  .score-bar-fill { height: 100%; background: var(--color-accent); width: 0%; transition: width 0.25s ease; }
+  .reset-btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--color-ink-muted);
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  .reset-btn:hover { color: var(--bad); border-color: var(--bad-line); }
+
+  .topicnav {
+    display: flex;
+    gap: var(--space-1);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-5);
+  }
+  .topicnav a {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    text-decoration: none;
+    color: var(--color-ink-muted);
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .topicnav a:hover { color: var(--color-accent); border-color: var(--color-accent); }
+
+  .topic-section { margin-bottom: var(--space-5); }
+  .section-head {
+    scroll-margin-top: var(--space-4);
+    margin-bottom: var(--space-4);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+  .section-head .num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-accent);
+    margin: 0 0 var(--space-1);
+  }
+  .section-head h2 {
+    font-size: var(--fs-xl);
+    margin: 0 0 var(--space-1);
+  }
+  .section-head .blurb { color: var(--color-ink-muted); font-size: var(--fs-sm); margin: 0; max-width: 60ch; }
+
+  .qlist { display: flex; flex-direction: column; gap: var(--space-3); }
+
+  .qcard {
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+  }
+  .qhead { display: flex; gap: var(--space-2); align-items: baseline; margin-bottom: var(--space-2); flex-wrap: wrap; }
+  .qnum { font-family: var(--font-mono); font-weight: 600; color: var(--color-accent); font-size: 0.85rem; }
+  .qtag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--color-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .qtext { font-size: var(--fs-base); font-weight: 500; margin: 0 0 4px; }
+  .qhint { font-size: var(--fs-sm); color: var(--color-ink-muted); margin: 0 0 var(--space-3); }
+
+  .options { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    font-size: var(--fs-sm);
+    background: var(--color-bg);
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .opt:hover { border-color: var(--color-accent); }
+  .opt input { margin-top: 3px; accent-color: var(--color-accent); flex: none; }
+  .opt .otext { flex: 1; cursor: pointer; }
+  .opt .mark { flex: none; font-family: var(--font-mono); font-size: 12px; font-weight: 600; opacity: 0; }
+
+  .qcard.checked .opt { cursor: default; }
+  .qcard.checked .opt.sel-correct { background: var(--good-soft); border-color: var(--good-line); }
+  .qcard.checked .opt.sel-correct .mark { opacity: 1; color: var(--good); }
+  .qcard.checked .opt.sel-wrong { background: var(--bad-soft); border-color: var(--bad-line); }
+  .qcard.checked .opt.sel-wrong .mark { opacity: 1; color: var(--bad); }
+  .qcard.checked .opt.missed { background: var(--miss-soft); border-color: var(--miss-line); }
+  .qcard.checked .opt.missed .mark { opacity: 1; color: var(--miss); }
+
+  .qfoot { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .check-btn {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--color-accent-ink);
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  .check-btn:hover { filter: brightness(1.08); }
+  .check-btn.is-hidden { display: none; }
+  .verdict { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; display: none; }
+  .verdict.show { display: inline-flex; align-items: center; gap: 6px; }
+  .verdict.pass { color: var(--good); }
+  .verdict.fail { color: var(--bad); }
+
+  .explain {
+    display: none;
+    margin-top: var(--space-3);
+    padding: var(--space-3) 14px;
+    background: var(--sunken);
+    border-left: 3px solid var(--color-accent);
+    border-radius: 0 8px 8px 0;
+    font-size: var(--fs-sm);
+    color: var(--color-ink);
+  }
+  .explain.show { display: block; }
+  .explain .lbl {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    display: block;
+    margin-bottom: 5px;
+  }
+  .explain-body :global(p) { margin: 0 0 8px; }
+  .explain-body :global(p:last-child) { margin-bottom: 0; }
+  .explain-body :global(code) {
+    font-family: var(--font-mono);
+    background: var(--color-accent-soft);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+
+  footer.endnote {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-ink-muted);
+    font-size: var(--fs-sm);
+  }
+
+  @media (max-width: 480px) {
+    .qhead { flex-wrap: wrap; }
+  }
+</style>
+
+<script>
+  const STORAGE_KEY = "ml_quiz_part1_progress_v1";
+
+  function loadProgress(): Record<string, boolean> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveProgress(state: Record<string, boolean>) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  const progress = loadProgress();
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(".qcard"));
+  const totalEl = document.getElementById("stat-answered");
+  const correctEl = document.getElementById("stat-correct");
+  const barEl = document.getElementById("score-bar") as HTMLElement | null;
+  const total = cards.length;
+
+  function updateScoreboard() {
+    let answered = 0, correct = 0;
+    for (const id in progress) {
+      answered++;
+      if (progress[id]) correct++;
+    }
+    if (totalEl) totalEl.textContent = answered + "/" + total;
+    if (correctEl) correctEl.textContent = String(correct);
+    if (barEl) barEl.style.width = (total ? Math.round((answered / total) * 100) : 0) + "%";
+  }
+
+  function checkCard(card: HTMLElement) {
+    const opts = Array.from(card.querySelectorAll<HTMLLIElement>(".opt"));
+    let allCorrectChosen = true;
+    let anyWrongChosen = false;
+
+    for (const li of opts) {
+      const input = li.querySelector("input") as HTMLInputElement;
+      const mark = li.querySelector(".mark") as HTMLElement;
+      const isCorrect = input.dataset.correct === "1";
+      const picked = input.checked;
+      if (isCorrect && !picked) {
+        li.classList.add("missed");
+        mark.textContent = "✓ correct answer (missed)";
+        allCorrectChosen = false;
+      } else if (isCorrect && picked) {
+        li.classList.add("sel-correct");
+        mark.textContent = "✓ correct";
+      } else if (!isCorrect && picked) {
+        li.classList.add("sel-wrong");
+        mark.textContent = "✗ incorrect";
+        anyWrongChosen = true;
+      }
+      input.disabled = true;
+    }
+
+    const pass = allCorrectChosen && !anyWrongChosen;
+    card.classList.add("checked");
+    const explain = card.querySelector(".explain");
+    if (explain) explain.classList.add("show");
+    const verdict = card.querySelector(".verdict") as HTMLElement;
+    if (verdict) {
+      verdict.classList.add("show", pass ? "pass" : "fail");
+      verdict.textContent = pass ? "✓ Correct" : "✗ Not quite — see explanation";
+    }
+    const btn = card.querySelector(".check-btn") as HTMLElement;
+    if (btn) btn.classList.add("is-hidden");
+
+    progress[card.id] = pass;
+    saveProgress(progress);
+    updateScoreboard();
+  }
+
+  for (const card of cards) {
+    const btn = card.querySelector(".check-btn");
+    if (btn) btn.addEventListener("click", () => checkCard(card));
+  }
+
+  const resetBtn = document.getElementById("reset-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      location.reload();
+    });
+  }
+
+  updateScoreboard();
+</script>
